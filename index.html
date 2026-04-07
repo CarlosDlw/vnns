@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VNNS - Visual Neural Network Sandbox</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
+  <link rel="stylesheet" href="styles/main.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="titlebar">
+    <div class="titlebar-title">VNNS - Visual Neural Network Sandbox</div>
+  </div>
+
+  <div class="menubar">
+    <div class="menu-item" data-menu="file">
+      File
+      <div class="menu-dropdown" id="menu-file">
+        <button class="menu-dropdown-item" data-action="menu-new-network"><span class="menu-shortcut-label">New Network</span><span class="menu-shortcut">Ctrl+N</span></button>
+        <div class="menu-separator"></div>
+        <button class="menu-dropdown-item" data-action="menu-export-json"><span class="menu-shortcut-label">Export Topology as JSON</span><span class="menu-shortcut">Ctrl+S</span></button>
+        <button class="menu-dropdown-item" data-action="menu-import-json"><span class="menu-shortcut-label">Import Topology from JSON</span><span class="menu-shortcut">Ctrl+O</span></button>
+        <div class="menu-separator"></div>
+        <button class="menu-dropdown-item" data-action="menu-export-png"><span class="menu-shortcut-label">Export Canvas as PNG</span></button>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="edit">
+      Edit
+      <div class="menu-dropdown" id="menu-edit">
+        <button class="menu-dropdown-item" data-action="menu-undo"><span class="menu-shortcut-label">Undo</span><span class="menu-shortcut">Ctrl+Z</span></button>
+        <button class="menu-dropdown-item" data-action="menu-redo"><span class="menu-shortcut-label">Redo</span><span class="menu-shortcut">Ctrl+Shift+Z</span></button>
+        <div class="menu-separator"></div>
+        <button class="menu-dropdown-item" data-action="menu-add-layer"><span class="menu-shortcut-label">Add Layer</span></button>
+        <button class="menu-dropdown-item" data-action="menu-add-neuron"><span class="menu-shortcut-label">Add Neuron to Selected</span></button>
+        <div class="menu-separator"></div>
+        <button class="menu-dropdown-item" data-action="menu-auto-connect"><span class="menu-shortcut-label">Auto Connect</span></button>
+        <button class="menu-dropdown-item" data-action="menu-auto-layout"><span class="menu-shortcut-label">Auto Layout</span></button>
+        <button class="menu-dropdown-item" data-action="menu-clear-connections"><span class="menu-shortcut-label">Clear Connections</span></button>
+        <div class="menu-separator"></div>
+        <button class="menu-dropdown-item" data-action="menu-clear-canvas"><span class="menu-shortcut-label">Clear Canvas</span></button>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="view">
+      View
+      <div class="menu-dropdown" id="menu-view">
+        <button class="menu-dropdown-item" data-action="menu-zoom-in"><span class="menu-shortcut-label">Zoom In</span><span class="menu-shortcut">Ctrl++</span></button>
+        <button class="menu-dropdown-item" data-action="menu-zoom-out"><span class="menu-shortcut-label">Zoom Out</span><span class="menu-shortcut">Ctrl+-</span></button>
+        <button class="menu-dropdown-item" data-action="menu-fit-view"><span class="menu-shortcut-label">Fit to View</span></button>
+        <button class="menu-dropdown-item" data-action="menu-fit-content"><span class="menu-shortcut-label">Fit to Content</span></button>
+        <div class="menu-separator"></div>
+        <button class="menu-dropdown-item" data-action="menu-toggle-grid"><span class="menu-shortcut-label">Toggle Grid</span></button>
+        <button class="menu-dropdown-item" data-action="menu-toggle-snap"><span class="menu-shortcut-label">Snap to Grid</span></button>
+        <button class="menu-dropdown-item" data-action="menu-toggle-minimap"><span class="menu-shortcut-label">Minimap</span></button>
+        <button class="menu-dropdown-item" data-action="menu-toggle-weights"><span class="menu-shortcut-label">Show Weights</span></button>
+        <button class="menu-dropdown-item" data-action="menu-toggle-activations"><span class="menu-shortcut-label">Show Activations</span></button>
+        <div class="menu-separator"></div>
+        <button class="menu-dropdown-item" data-action="menu-panel-create"><span class="menu-shortcut-label">Create Panel</span></button>
+        <button class="menu-dropdown-item" data-action="menu-panel-dataset"><span class="menu-shortcut-label">Dataset Panel</span></button>
+        <button class="menu-dropdown-item" data-action="menu-panel-train"><span class="menu-shortcut-label">Train Panel</span></button>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="templates">
+      Templates
+      <div class="menu-dropdown" id="menu-templates">
+        <button class="menu-dropdown-item" data-action="menu-tpl-simple-classifier"><span class="menu-shortcut-label">Simple Classifier (3 layers)</span></button>
+        <button class="menu-dropdown-item" data-action="menu-tpl-deep-network"><span class="menu-shortcut-label">Deep Network (5 layers)</span></button>
+        <button class="menu-dropdown-item" data-action="menu-tpl-wide-network"><span class="menu-shortcut-label">Wide Network (3 layers)</span></button>
+        <button class="menu-dropdown-item" data-action="menu-tpl-autoencoder"><span class="menu-shortcut-label">Autoencoder</span></button>
+        <button class="menu-dropdown-item" data-action="menu-tpl-binary-classifier"><span class="menu-shortcut-label">Binary Classifier</span></button>
+        <button class="menu-dropdown-item" data-action="menu-tpl-regression"><span class="menu-shortcut-label">Regression</span></button>
+        <div class="menu-separator"></div>
+        <button class="menu-dropdown-item" data-action="menu-tpl-custom"><span class="menu-shortcut-label">Custom Template...</span></button>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="help">
+      Help
+      <div class="menu-dropdown" id="menu-help">
+        <button class="menu-dropdown-item" data-action="menu-shortcuts"><span class="menu-shortcut-label">Keyboard Shortcuts</span></button>
+        <div class="menu-separator"></div>
+        <button class="menu-dropdown-item" data-action="menu-about"><span class="menu-shortcut-label">About VNNS</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="left-layout">
+      <div class="activitybar">
+        <div class="activity-icon active" data-view="create"><span class="codicon codicon-new-file"></span></div>
+        <div class="activity-icon" data-view="dataset"><span class="codicon codicon-database"></span></div>
+        <div class="activity-icon" data-view="train"><span class="codicon codicon-run-all"></span></div>
+        <div class="activity-icon" data-view="predict"><span class="codicon codicon-play-circle"></span></div>
+      </div>
+      <div class="sidebar">
+        <div class="sidebar-view active" id="view-create">
+          <div class="sidebar-header">Create</div>
+          <div class="sidebar-content">
+            <button class="sidebar-btn">
+              <span class="codicon codicon-add"></span>
+              Add Neuron
+            </button>
+            <button class="sidebar-btn">
+              <span class="codicon codicon-layers"></span>
+              Add Layer
+            </button>
+            <button class="sidebar-btn" id="btn-clear-canvas">
+              <span class="codicon codicon-trash"></span>
+              Clear Canvas
+            </button>
+            <button class="sidebar-btn" id="btn-auto-connect">
+              <span class="codicon codicon-plug"></span>
+              Auto Connect
+            </button>
+            <button class="sidebar-btn" id="btn-clear-connections">
+              <span class="codicon codicon-clear-all"></span>
+              Clear Connections
+            </button>
+            <button class="sidebar-btn" id="btn-auto-layout">
+              <span class="codicon codicon-layout"></span>
+              Auto Layout
+            </button>
+          </div>
+        </div>
+        <div class="sidebar-view" id="view-dataset">
+          <div class="sidebar-header">Dataset</div>
+          <div class="sidebar-content">
+            <div class="sidebar-section-group">
+              <div class="section-title">Source</div>
+              <div class="source-buttons">
+                <button class="sidebar-btn" id="btn-upload">
+                  <span class="codicon codicon-cloud-upload"></span>
+                  Upload File
+                </button>
+                <button class="sidebar-btn" id="btn-paste">
+                  <span class="codicon codicon-clippy"></span>
+                  Paste Data
+                </button>
+                <button class="sidebar-btn" id="btn-url">
+                  <span class="codicon codicon-link"></span>
+                  From URL
+                </button>
+                <button class="sidebar-btn" id="btn-generate">
+                  <span class="codicon codicon-lightbulb"></span>
+                  Generate Synthetic
+                </button>
+                <button class="sidebar-btn" id="btn-manual">
+                  <span class="codicon codicon-edit"></span>
+                  Manual Editor
+                </button>
+              </div>
+              <input type="file" id="file-input" accept=".csv,.json" style="display:none">
+              <div class="url-input-group" id="url-group" style="display:none">
+                <input type="text" class="param-input-inline" id="data-url" placeholder="https://example.com/data.csv">
+                <button class="control-btn-inline" id="fetch-url-btn">Fetch</button>
+              </div>
+            </div>
+
+            <div class="sidebar-section-group" id="preview-section" style="display:none">
+              <div class="section-title">Preview</div>
+              <div class="data-preview">
+                <table class="preview-table" id="preview-table">
+                  <thead id="preview-head"></thead>
+                  <tbody id="preview-body"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="sidebar-section-group" id="columns-section" style="display:none">
+              <div class="section-title">Columns</div>
+              <div class="columns-list" id="columns-list"></div>
+            </div>
+
+            <div class="sidebar-section-group" id="split-section" style="display:none">
+              <div class="section-title">Train / Val / Test Split</div>
+              <div class="split-controls">
+                <div class="split-item">
+                  <span class="split-label">Train</span>
+                  <input type="range" class="param-slider split-slider" id="split-train" min="10" max="100" step="5" value="70">
+                  <span class="split-value" id="split-train-value">70%</span>
+                </div>
+                <div class="split-item">
+                  <span class="split-label">Validation</span>
+                  <input type="range" class="param-slider split-slider" id="split-val" min="0" max="40" step="5" value="15">
+                  <span class="split-value" id="split-val-value">15%</span>
+                </div>
+                <div class="split-item">
+                  <span class="split-label">Test</span>
+                  <span class="split-value" id="split-test-value">15%</span>
+                </div>
+                <div class="split-options">
+                  <label class="split-option">
+                    <input type="checkbox" id="split-shuffle" checked>
+                    Shuffle
+                  </label>
+                  <div class="param-group" style="margin:0">
+                    <label class="param-label" style="font-size:10px">Random Seed</label>
+                    <input type="number" class="param-input-small" id="split-seed" value="42" min="0">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sidebar-section-group" id="stats-section" style="display:none">
+              <div class="section-title">Statistics</div>
+              <div class="stats-grid" id="stats-grid"></div>
+            </div>
+          </div>
+        </div>
+        <div class="sidebar-view" id="view-train">
+          <div class="sidebar-header">Train</div>
+          <div class="sidebar-content">
+            <div class="sidebar-section-group">
+              <div class="section-title">Training Controls</div>
+              <div class="control-buttons">
+                <button class="control-btn" id="train-play" title="Play">
+                  <span class="codicon codicon-play"></span>
+                </button>
+                <button class="control-btn" id="train-pause" title="Pause">
+                  <span class="codicon codicon-debug-pause"></span>
+                </button>
+                <button class="control-btn" id="train-stop" title="Stop">
+                  <span class="codicon codicon-debug-stop"></span>
+                </button>
+                <button class="control-btn" id="train-step" title="Step">
+                  <span class="codicon codicon-debug-step-over"></span>
+                </button>
+              </div>
+            </div>
+            <div class="sidebar-section-group">
+              <div class="section-title">Hyperparameters</div>
+
+              <div class="param-group">
+                <label class="param-label">Optimizer</label>
+                <select class="param-select" id="optimizer-select">
+                  <option>Adam</option>
+                  <option>SGD + Momentum</option>
+                  <option>SGD</option>
+                  <option>RMSprop</option>
+                </select>
+              </div>
+
+              <div class="param-group">
+                <div class="param-label">
+                  <span>Learning Rate</span>
+                  <span class="param-value editable" id="lr-value" data-min="0.0001" data-max="1" data-decimals="6">0.001000</span>
+                  <input type="text" class="param-input" id="lr-input" data-min="0.0001" data-max="1" data-decimals="6" value="0.001000">
+                </div>
+                <input type="range" class="param-slider" id="lr-slider" min="0.0001" max="1" step="0.0001" value="0.001">
+              </div>
+
+              <div class="param-group">
+                <div class="param-label">
+                  <span>Epochs</span>
+                  <span class="param-value editable" id="epochs-value" data-min="100" data-max="100000" data-decimals="0">1,000</span>
+                  <input type="text" class="param-input" id="epochs-input" data-min="100" data-max="100000" data-decimals="0" value="1000">
+                </div>
+                <input type="range" class="param-slider" id="epochs-slider" min="100" max="100000" step="100" value="1000">
+              </div>
+
+              <div class="param-group">
+                <div class="param-label">
+                  <span>Batch Size</span>
+                  <span class="param-value editable" id="batch-value" data-min="1" data-max="256" data-decimals="0">32</span>
+                  <input type="text" class="param-input" id="batch-input" data-min="1" data-max="256" data-decimals="0" value="32">
+                </div>
+                <input type="range" class="param-slider" id="batch-slider" min="1" max="256" step="1" value="32">
+              </div>
+
+              <div class="param-group">
+                <label class="param-label">Loss Function</label>
+                <select class="param-select" id="loss-select">
+                  <option>MSE</option>
+                  <option>Binary CrossEntropy</option>
+                  <option>Categorical CrossEntropy</option>
+                  <option>MAE</option>
+                  <option>Huber</option>
+                </select>
+              </div>
+            </div>
+            <div class="sidebar-section-group">
+              <div class="section-title">Metrics</div>
+              <div class="metrics-grid">
+                <div class="metric-item">
+                  <span class="metric-label">Epoch</span>
+                  <span class="metric-value" id="metric-epoch">0</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-label">Train Loss</span>
+                  <span class="metric-value" id="metric-loss">—</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-label">Train Accuracy</span>
+                  <span class="metric-value" id="metric-accuracy">—</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-label">Time</span>
+                  <span class="metric-value" id="metric-time">00:00</span>
+                </div>
+              </div>
+              <div class="chart-container">
+                <div class="chart-label">Loss</div>
+                <canvas id="loss-chart"></canvas>
+              </div>
+              <div class="chart-container">
+                <div class="chart-label">Accuracy</div>
+                <canvas id="accuracy-chart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="sidebar-view" id="view-predict">
+          <div class="sidebar-header">Predict</div>
+          <div class="sidebar-content">
+            <div class="sidebar-section-group">
+              <div class="section-title">Input</div>
+              <div id="predict-inputs" class="predict-inputs">
+                <div class="predict-empty">
+                  <span class="codicon codicon-info"></span>
+                  <span>Train a model first</span>
+                </div>
+              </div>
+              <div class="predict-sample-row">
+                <button class="sidebar-btn" id="btn-predict-sample">
+                  <span class="codicon codicon-beaker"></span>
+                  Random Sample
+                </button>
+              </div>
+            </div>
+            <div class="sidebar-section-group">
+              <button class="sidebar-btn predict-run-btn" id="btn-predict-run">
+                <span class="codicon codicon-play"></span>
+                Run Prediction
+              </button>
+              <label class="predict-checkbox-label">
+                <input type="checkbox" id="predict-animate" checked>
+                <span>Animate forward pass</span>
+              </label>
+            </div>
+            <div class="sidebar-section-group" id="predict-output-section" style="display:none">
+              <div class="section-title">Output</div>
+              <div id="predict-outputs" class="predict-outputs"></div>
+            </div>
+            <div class="sidebar-section-group" id="predict-expected-section" style="display:none">
+              <div class="section-title">Expected (from sample)</div>
+              <div id="predict-expected" class="predict-outputs predict-expected"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="content">
+      <canvas id="network-canvas"></canvas>
+      <div class="context-toolbar" id="context-toolbar" style="display:none">
+        <button class="ctx-tool-btn" id="ctx-tools-btn" title="Tools">
+          <span class="codicon codicon-tools"></span>
+        </button>
+        <div class="ctx-dropdown" id="ctx-dropdown" style="display:none"></div>
+      </div>
+
+      <div class="canvas-context-menu" id="canvas-context-menu" style="display:none"></div>
+
+      <div class="minimap-container" id="minimap-container">
+        <canvas id="minimap-canvas"></canvas>
+      </div>
+
+      <div class="canvas-controls">
+        <button class="canvas-ctrl-btn" id="zoom-in" title="Zoom In"><span class="codicon codicon-zoom-in"></span></button>
+        <button class="canvas-ctrl-btn" id="zoom-out" title="Zoom Out"><span class="codicon codicon-zoom-out"></span></button>
+        <button class="canvas-ctrl-btn" id="zoom-fit" title="Fit to View"><span class="codicon codicon-screen-full"></span></button>
+        <button class="canvas-ctrl-btn" id="zoom-fit-content" title="Fit to Content"><span class="codicon codicon-screen-normal"></span></button>
+        <button class="canvas-ctrl-btn" id="toggle-grid" title="Toggle Grid"><span class="codicon codicon-table"></span></button>
+        <button class="canvas-ctrl-btn" id="toggle-snap" title="Snap to Grid"><span class="codicon codicon-pin"></span></button>
+        <button class="canvas-ctrl-btn active" id="toggle-minimap" title="Minimap"><span class="codicon codicon-map"></span></button>
+        <button class="canvas-ctrl-btn" id="toggle-weights" title="Show Weight Visualization"><span class="codicon codicon-symbol-numeric"></span></button>
+        <button class="canvas-ctrl-btn" id="toggle-activations" title="Show Activations"><span class="codicon codicon-pulse"></span></button>
+        <span class="zoom-level" id="zoom-level">100%</span>
+      </div>
+      <div class="canvas-tooltip" id="canvas-tooltip"></div>
+    </div>
+    <div class="right-panel">
+      <div class="panel-section" id="panel-top">
+        <div class="panel-header">Properties</div>
+        <div class="panel-content" id="properties-content">
+          <div class="props-empty">
+            <span class="codicon codicon-info"></span>
+            <span>Select a layer or neuron</span>
+          </div>
+        </div>
+      </div>
+      <div class="resize-handle" id="resize-handle"></div>
+      <div class="panel-section" id="panel-bottom">
+        <div class="panel-header">
+          Output
+          <button class="panel-header-btn" id="output-clear" title="Clear Output">
+            <span class="codicon codicon-clear-all"></span>
+          </button>
+        </div>
+        <div class="output-log" id="output-log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="auto-connect-modal" style="display:none">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="modal-title">Auto Connect Layers</span>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <label class="modal-label">Connection Type</label>
+          <select class="modal-select" id="connect-type">
+            <option value="sequential">Sequential (Layer N → Layer N+1)</option>
+            <option value="full">Fully Connected (All to All)</option>
+            <option value="one-to-one">One-to-One (Neuron i → Neuron i)</option>
+            <option value="skip">Skip Connection (Layer N → Layer N+K)</option>
+            <option value="random">Random Sparse (% of connections)</option>
+            <option value="custom">Custom Range</option>
+          </select>
+        </div>
+        <div class="modal-section" id="skip-section" style="display:none">
+          <label class="modal-label">Skip distance (K)</label>
+          <input type="number" class="modal-input" id="skip-distance" value="2" min="2" max="10">
+        </div>
+        <div class="modal-section" id="random-section" style="display:none">
+          <label class="modal-label">Connection probability (%)</label>
+          <input type="number" class="modal-input" id="random-probability" value="50" min="1" max="100">
+        </div>
+        <div class="modal-section" id="custom-range-section" style="display:none">
+          <div class="modal-row">
+            <div class="modal-field">
+              <label class="modal-label">From Layer</label>
+              <select class="modal-select" id="connect-from-layer"></select>
+            </div>
+            <div class="modal-field">
+              <label class="modal-label">To Layer</label>
+              <select class="modal-select" id="connect-to-layer"></select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-section">
+          <label class="modal-checkbox">
+            <input type="checkbox" id="connect-bidirectional">
+            <span>Bi-directional (create reverse connections)</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-secondary" id="modal-cancel">Cancel</button>
+        <button class="modal-btn modal-btn-primary" id="modal-confirm">Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="rename-modal" style="display:none">
+    <div class="modal-overlay"></div>
+    <div class="modal-content" style="min-width:320px;max-width:380px">
+      <div class="modal-header">
+        <span class="modal-title">Rename Layer</span>
+        <button class="modal-close" id="rename-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <label class="modal-label">Layer Name</label>
+          <input type="text" class="modal-input" id="rename-input" placeholder="Layer name" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-secondary" id="rename-cancel">Cancel</button>
+        <button class="modal-btn modal-btn-primary" id="rename-confirm">Rename</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="import-json-input" accept=".json" style="display:none">
+
+  <div class="modal" id="shortcuts-modal" style="display:none">
+    <div class="modal-overlay"></div>
+    <div class="modal-content" style="min-width:380px;max-width:440px">
+      <div class="modal-header">
+        <span class="modal-title">Keyboard Shortcuts</span>
+        <button class="modal-close" id="shortcuts-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="shortcuts-list">
+          <div class="shortcut-row"><span class="shortcut-desc">Pan canvas</span><span class="shortcut-keys">Click + Drag / Alt + Click</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Zoom</span><span class="shortcut-keys">Scroll wheel</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Select layer/neuron</span><span class="shortcut-keys">Click</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Multi-select</span><span class="shortcut-keys">Shift + Click</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Start connection</span><span class="shortcut-keys">Right-click neuron</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Delete selected</span><span class="shortcut-keys">Delete / Backspace</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Cancel action</span><span class="shortcut-keys">Escape</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">New network</span><span class="shortcut-keys">Ctrl + N</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Export topology</span><span class="shortcut-keys">Ctrl + S</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Import topology</span><span class="shortcut-keys">Ctrl + O</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="about-modal" style="display:none">
+    <div class="modal-overlay"></div>
+    <div class="modal-content" style="min-width:340px;max-width:400px">
+      <div class="modal-header">
+        <span class="modal-title">About VNNS</span>
+        <button class="modal-close" id="about-modal-close">&times;</button>
+      </div>
+      <div class="modal-body" style="text-align:center;padding:24px 16px">
+        <div style="font-size:18px;font-weight:700;color:#ffffff;margin-bottom:4px">VNNS</div>
+        <div style="font-size:12px;color:#969696;margin-bottom:16px">Visual Neural Network Sandbox</div>
+        <div style="font-size:11px;color:#969696;line-height:1.6">
+          Design, visualize and train neural networks<br>directly in your browser.<br><br>
+          Built with HTML Canvas + C/WebAssembly
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="dataset-editor-modal" style="display:none">
+    <div class="modal-overlay"></div>
+    <div class="modal-content dataset-editor-content">
+      <div class="modal-header">
+        <span class="modal-title">Dataset Editor</span>
+        <button class="modal-close" id="dataset-editor-close">&times;</button>
+      </div>
+      <div class="modal-body dataset-editor-body">
+        <div class="de-toolbar">
+          <div class="de-toolbar-left">
+            <button class="de-btn" id="de-add-col" title="Add Column">
+              <span class="codicon codicon-add"></span> Column
+            </button>
+            <button class="de-btn" id="de-add-row" title="Add Row">
+              <span class="codicon codicon-add"></span> Row
+            </button>
+            <button class="de-btn de-danger" id="de-del-col" title="Delete Last Column">
+              <span class="codicon codicon-remove"></span> Column
+            </button>
+            <button class="de-btn de-danger" id="de-del-row" title="Delete Last Row">
+              <span class="codicon codicon-remove"></span> Row
+            </button>
+          </div>
+          <div class="de-toolbar-right">
+            <span class="de-info" id="de-info">0 cols × 0 rows</span>
+          </div>
+        </div>
+        <div class="de-table-wrap">
+          <table class="de-table" id="de-table">
+            <thead id="de-head"></thead>
+            <tbody id="de-body"></tbody>
+          </table>
+        </div>
+        <div class="de-roles" id="de-roles"></div>
+        <div class="de-actions">
+          <button class="de-btn de-primary" id="de-apply">Apply Dataset</button>
+          <button class="de-btn" id="de-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="backend/build/vnns.js"></script>
+  <script src="scripts/network-manager.js"></script>
+  <script src="scripts/wasm-bridge.js"></script>
+  <script src="scripts/main.js"></script>
+</body>
+</html>
