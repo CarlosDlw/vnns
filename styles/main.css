@@ -174,9 +174,12 @@ body {
 
 /* Shortcuts modal */
 .shortcuts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
+  grid-template-rows: repeat(14, auto);
+  grid-auto-flow: column;
+  gap: 2px 28px;
+  max-height: 420px;
+  overflow-x: auto;
 }
 
 .shortcut-row {
@@ -185,6 +188,7 @@ body {
   align-items: center;
   padding: 5px 4px;
   border-radius: 3px;
+  min-width: 250px;
 }
 
 .shortcut-row:hover {

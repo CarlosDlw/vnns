@@ -17,7 +17,7 @@
     <div class="menu-item" data-menu="file">
       File
       <div class="menu-dropdown" id="menu-file">
-        <button class="menu-dropdown-item" data-action="menu-new-network"><span class="menu-shortcut-label">New Network</span><span class="menu-shortcut">Ctrl+N</span></button>
+        <button class="menu-dropdown-item" data-action="menu-new-network"><span class="menu-shortcut-label">New Network</span><span class="menu-shortcut">Ctrl+Shift+N</span></button>
         <div class="menu-separator"></div>
         <button class="menu-dropdown-item" data-action="menu-export-json"><span class="menu-shortcut-label">Export Topology as JSON</span><span class="menu-shortcut">Ctrl+S</span></button>
         <button class="menu-dropdown-item" data-action="menu-import-json"><span class="menu-shortcut-label">Import Topology from JSON</span><span class="menu-shortcut">Ctrl+O</span></button>
@@ -31,11 +31,11 @@
         <button class="menu-dropdown-item" data-action="menu-undo"><span class="menu-shortcut-label">Undo</span><span class="menu-shortcut">Ctrl+Z</span></button>
         <button class="menu-dropdown-item" data-action="menu-redo"><span class="menu-shortcut-label">Redo</span><span class="menu-shortcut">Ctrl+Shift+Z</span></button>
         <div class="menu-separator"></div>
-        <button class="menu-dropdown-item" data-action="menu-add-layer"><span class="menu-shortcut-label">Add Layer</span></button>
-        <button class="menu-dropdown-item" data-action="menu-add-neuron"><span class="menu-shortcut-label">Add Neuron to Selected</span></button>
+        <button class="menu-dropdown-item" data-action="menu-add-layer"><span class="menu-shortcut-label">Add Layer</span><span class="menu-shortcut">L</span></button>
+        <button class="menu-dropdown-item" data-action="menu-add-neuron"><span class="menu-shortcut-label">Add Neuron to Selected</span><span class="menu-shortcut">A</span></button>
         <div class="menu-separator"></div>
-        <button class="menu-dropdown-item" data-action="menu-auto-connect"><span class="menu-shortcut-label">Auto Connect</span></button>
-        <button class="menu-dropdown-item" data-action="menu-auto-layout"><span class="menu-shortcut-label">Auto Layout</span></button>
+        <button class="menu-dropdown-item" data-action="menu-auto-connect"><span class="menu-shortcut-label">Auto Connect</span><span class="menu-shortcut">Ctrl+Shift+A</span></button>
+        <button class="menu-dropdown-item" data-action="menu-auto-layout"><span class="menu-shortcut-label">Auto Layout</span><span class="menu-shortcut">Ctrl+Shift+L</span></button>
         <button class="menu-dropdown-item" data-action="menu-clear-connections"><span class="menu-shortcut-label">Clear Connections</span></button>
         <div class="menu-separator"></div>
         <button class="menu-dropdown-item" data-action="menu-clear-canvas"><span class="menu-shortcut-label">Clear Canvas</span></button>
@@ -47,18 +47,19 @@
         <button class="menu-dropdown-item" data-action="menu-zoom-in"><span class="menu-shortcut-label">Zoom In</span><span class="menu-shortcut">Ctrl++</span></button>
         <button class="menu-dropdown-item" data-action="menu-zoom-out"><span class="menu-shortcut-label">Zoom Out</span><span class="menu-shortcut">Ctrl+-</span></button>
         <button class="menu-dropdown-item" data-action="menu-fit-view"><span class="menu-shortcut-label">Fit to View</span></button>
-        <button class="menu-dropdown-item" data-action="menu-fit-content"><span class="menu-shortcut-label">Fit to Content</span></button>
+        <button class="menu-dropdown-item" data-action="menu-fit-content"><span class="menu-shortcut-label">Fit to Content</span><span class="menu-shortcut">F</span></button>
         <div class="menu-separator"></div>
-        <button class="menu-dropdown-item" data-action="menu-toggle-grid"><span class="menu-shortcut-label">Toggle Grid</span></button>
+        <button class="menu-dropdown-item" data-action="menu-toggle-grid"><span class="menu-shortcut-label">Toggle Grid</span><span class="menu-shortcut">G</span></button>
         <button class="menu-dropdown-item" data-action="menu-toggle-snap"><span class="menu-shortcut-label">Snap to Grid</span></button>
-        <button class="menu-dropdown-item" data-action="menu-toggle-minimap"><span class="menu-shortcut-label">Minimap</span></button>
-        <button class="menu-dropdown-item" data-action="menu-toggle-weights"><span class="menu-shortcut-label">Show Weights</span></button>
+        <button class="menu-dropdown-item" data-action="menu-toggle-minimap"><span class="menu-shortcut-label">Minimap</span><span class="menu-shortcut">M</span></button>
+        <button class="menu-dropdown-item" data-action="menu-toggle-weights"><span class="menu-shortcut-label">Show Weights</span><span class="menu-shortcut">W</span></button>
         <button class="menu-dropdown-item" data-action="menu-toggle-activations"><span class="menu-shortcut-label">Show Activations</span></button>
-        <button class="menu-dropdown-item" data-action="menu-toggle-theme"><span class="menu-shortcut-label">Toggle Light Theme</span></button>
+        <button class="menu-dropdown-item" data-action="menu-toggle-theme"><span class="menu-shortcut-label">Toggle Light Theme</span><span class="menu-shortcut">T</span></button>
         <div class="menu-separator"></div>
-        <button class="menu-dropdown-item" data-action="menu-panel-create"><span class="menu-shortcut-label">Create Panel</span></button>
-        <button class="menu-dropdown-item" data-action="menu-panel-dataset"><span class="menu-shortcut-label">Dataset Panel</span></button>
-        <button class="menu-dropdown-item" data-action="menu-panel-train"><span class="menu-shortcut-label">Train Panel</span></button>
+        <button class="menu-dropdown-item" data-action="menu-panel-create"><span class="menu-shortcut-label">Create Panel</span><span class="menu-shortcut">1</span></button>
+        <button class="menu-dropdown-item" data-action="menu-panel-dataset"><span class="menu-shortcut-label">Dataset Panel</span><span class="menu-shortcut">2</span></button>
+        <button class="menu-dropdown-item" data-action="menu-panel-train"><span class="menu-shortcut-label">Train Panel</span><span class="menu-shortcut">3</span></button>
+        <button class="menu-dropdown-item" data-action="menu-panel-predict"><span class="menu-shortcut-label">Predict Panel</span><span class="menu-shortcut">4</span></button>
       </div>
     </div>
     <div class="menu-item" data-menu="templates">
@@ -77,7 +78,7 @@
     <div class="menu-item" data-menu="help">
       Help
       <div class="menu-dropdown" id="menu-help">
-        <button class="menu-dropdown-item" data-action="menu-shortcuts"><span class="menu-shortcut-label">Keyboard Shortcuts</span></button>
+        <button class="menu-dropdown-item" data-action="menu-shortcuts"><span class="menu-shortcut-label">Keyboard Shortcuts</span><span class="menu-shortcut">?</span></button>
         <div class="menu-separator"></div>
         <button class="menu-dropdown-item" data-action="menu-about"><span class="menu-shortcut-label">About VNNS</span></button>
       </div>
@@ -542,7 +543,7 @@
 
   <div class="modal" id="shortcuts-modal" style="display:none">
     <div class="modal-overlay"></div>
-    <div class="modal-content" style="min-width:380px;max-width:440px">
+    <div class="modal-content" style="min-width:580px;max-width:680px">
       <div class="modal-header">
         <span class="modal-title">Keyboard Shortcuts</span>
         <button class="modal-close" id="shortcuts-modal-close">&times;</button>
@@ -554,11 +555,28 @@
           <div class="shortcut-row"><span class="shortcut-desc">Select layer/neuron</span><span class="shortcut-keys">Click</span></div>
           <div class="shortcut-row"><span class="shortcut-desc">Multi-select</span><span class="shortcut-keys">Shift + Click</span></div>
           <div class="shortcut-row"><span class="shortcut-desc">Start connection</span><span class="shortcut-keys">Right-click neuron</span></div>
-          <div class="shortcut-row"><span class="shortcut-desc">Delete selected</span><span class="shortcut-keys">Delete / Backspace</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Delete selected</span><span class="shortcut-keys">Delete / Backspace / X</span></div>
           <div class="shortcut-row"><span class="shortcut-desc">Cancel action</span><span class="shortcut-keys">Escape</span></div>
-          <div class="shortcut-row"><span class="shortcut-desc">New network</span><span class="shortcut-keys">Ctrl + N</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">New network</span><span class="shortcut-keys">Ctrl + Shift + N</span></div>
           <div class="shortcut-row"><span class="shortcut-desc">Export topology</span><span class="shortcut-keys">Ctrl + S</span></div>
           <div class="shortcut-row"><span class="shortcut-desc">Import topology</span><span class="shortcut-keys">Ctrl + O</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Undo</span><span class="shortcut-keys">Ctrl + Z</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Redo</span><span class="shortcut-keys">Ctrl + Shift + Z</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Add layer</span><span class="shortcut-keys">L</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Add neuron to selected</span><span class="shortcut-keys">A</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Auto connect</span><span class="shortcut-keys">Ctrl + Shift + A</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Auto layout</span><span class="shortcut-keys">Ctrl + Shift + L</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Toggle grid</span><span class="shortcut-keys">G</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Show weights</span><span class="shortcut-keys">W</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Toggle minimap</span><span class="shortcut-keys">M</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Toggle theme</span><span class="shortcut-keys">T</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Fit to content</span><span class="shortcut-keys">F</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Zoom in / out</span><span class="shortcut-keys">Ctrl + / Ctrl -</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Create panel</span><span class="shortcut-keys">1</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Dataset panel</span><span class="shortcut-keys">2</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Train panel</span><span class="shortcut-keys">3</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Predict panel</span><span class="shortcut-keys">4</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Keyboard shortcuts</span><span class="shortcut-keys">?</span></div>
         </div>
       </div>
     </div>

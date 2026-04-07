@@ -3588,7 +3588,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const tag = document.activeElement && document.activeElement.tagName;
     const isEditing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (document.activeElement && document.activeElement.isContentEditable);
 
-    if ((e.key === 'Delete' || e.key === 'Backspace') && !isEditing) {
+    // Ctrl/Cmd shortcuts (must preventDefault early to block browser defaults)
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        if (e.shiftKey) { history.redo(); } else { history.undo(); }
+      }
+      if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); history.redo(); }
+      if (e.shiftKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); handleMenuAction('menu-new-network'); }
+      if (e.key === 's' || e.key === 'S') { e.preventDefault(); handleMenuAction('menu-export-json'); }
+      if (e.key === 'o' || e.key === 'O') { e.preventDefault(); handleMenuAction('menu-import-json'); }
+      if (e.shiftKey && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); handleMenuAction('menu-auto-connect'); }
+      if (e.shiftKey && (e.key === 'l' || e.key === 'L')) { e.preventDefault(); handleMenuAction('menu-auto-layout'); }
+      return;
+    }
+
+    if ((e.key === 'Delete' || e.key === 'Backspace' || ((e.key === 'x' || e.key === 'X') && !isEditing)) && !isEditing) {
       if (selectedNeuronIds.size > 0 || selectedLayerIds.size > 0) {
         saveState();
       }
@@ -3615,6 +3630,23 @@ document.addEventListener('DOMContentLoaded', () => {
       connectFrom = null;
       hideContextToolbar();
       render();
+    }
+
+    if (isEditing) return;
+
+    switch (e.key) {
+      case 'l': case 'L': handleMenuAction('menu-add-layer'); break;
+      case 'a': case 'A': handleMenuAction('menu-add-neuron'); break;
+      case 'g': case 'G': handleMenuAction('menu-toggle-grid'); break;
+      case 'w': case 'W': handleMenuAction('menu-toggle-weights'); break;
+      case 'm': case 'M': handleMenuAction('menu-toggle-minimap'); break;
+      case 't': case 'T': handleMenuAction('menu-toggle-theme'); break;
+      case 'f': case 'F': handleMenuAction('menu-fit-content'); break;
+      case '1': switchPanel('create'); break;
+      case '2': switchPanel('dataset'); break;
+      case '3': switchPanel('train'); break;
+      case '4': switchPanel('predict'); break;
+      case '?': handleMenuAction('menu-shortcuts'); break;
     }
   });
 
@@ -3988,6 +4020,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       case 'menu-panel-train':
         switchPanel('train');
+        break;
+
+      case 'menu-panel-predict':
+        switchPanel('predict');
         break;
 
       case 'menu-shortcuts':
@@ -4531,19 +4567,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Keyboard shortcuts
-  document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey || e.metaKey) {
-      if (e.key === 'z' || e.key === 'Z') {
-        e.preventDefault();
-        if (e.shiftKey) { history.redo(); } else { history.undo(); }
-      }
-      if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); history.redo(); }
-      if (e.key === 'n' || e.key === 'N') { e.preventDefault(); handleMenuAction('menu-new-network'); }
-      if (e.key === 's' || e.key === 'S') { e.preventDefault(); handleMenuAction('menu-export-json'); }
-      if (e.key === 'o' || e.key === 'O') { e.preventDefault(); handleMenuAction('menu-import-json'); }
-    }
-  });
-
   // --- Predict Panel ---
   const predictInputsContainer = document.getElementById('predict-inputs');
   const predictOutputsContainer = document.getElementById('predict-outputs');
