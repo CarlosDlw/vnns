@@ -4576,6 +4576,19 @@ document.addEventListener('DOMContentLoaded', () => {
     fwdAnimState.animId = requestAnimationFrame(tickForwardAnimation);
   }
 
+  function bezierPoint(p1, p2, t) {
+    const dx = p2.x - p1.x;
+    const direction = dx >= 0 ? 1 : -1;
+    const handle = Math.min(180, Math.max(36, Math.abs(dx) * 0.45));
+    const cp1x = p1.x + handle * direction, cp1y = p1.y;
+    const cp2x = p2.x - handle * direction, cp2y = p2.y;
+    const u = 1 - t;
+    return {
+      x: u*u*u*p1.x + 3*u*u*t*cp1x + 3*u*t*t*cp2x + t*t*t*p2.x,
+      y: u*u*u*p1.y + 3*u*u*t*cp1y + 3*u*t*t*cp2y + t*t*t*p2.y
+    };
+  }
+
   function drawForwardPassParticles() {
     if (!fwdAnimState || fwdAnimState.particles.length === 0) return;
 
@@ -4586,8 +4599,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const p1 = getNeuronScreenPos(p.fromNeuron);
       const p2 = getNeuronScreenPos(p.toNeuron);
 
-      const x = p1.x + (p2.x - p1.x) * t;
-      const y = p1.y + (p2.y - p1.y) * t;
+      const { x, y } = bezierPoint(p1, p2, t);
 
       const intensity = Math.abs(p.fromAct);
       const alpha = 0.3 + Math.min(intensity, 1) * 0.7;
