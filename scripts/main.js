@@ -381,6 +381,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (trainingState.epoch >= trainingState.maxEpochs) {
       stopTraining();
+      syncWeightsFromBackend();
+      renderDecisionBoundary();
       logOutput(`Training complete — ${trainingState.epoch} epochs in ${formatTime(Date.now() - trainingState.startTime)}`, 'success');
       if (lastResult) {
         logOutput(`Train — Loss: ${lastResult.loss.toFixed(6)}, Accuracy: ${(lastResult.accuracy * 100).toFixed(2)}%`, 'info');
@@ -552,6 +554,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const elapsed = Date.now() - trainingState.startTime;
     window.updateMetrics(trainingState.epoch, result.loss, result.accuracy);
     document.getElementById('metric-time').textContent = formatTime(elapsed);
+    syncWeightsFromBackend();
+    renderDecisionBoundary();
     setTrainingButtonStates(true, true);
   }
 
@@ -4276,9 +4280,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const predictExpectedContainer = document.getElementById('predict-expected');
   const predictOutputSection = document.getElementById('predict-output-section');
   const predictExpectedSection = document.getElementById('predict-expected-section');
+  const decisionBoundarySection = document.getElementById('decision-boundary-section');
+  const decisionBoundaryCanvas = document.getElementById('decision-boundary-canvas');
+  const decisionBoundaryNote = document.getElementById('decision-boundary-note');
   const btnPredictRun = document.getElementById('btn-predict-run');
   const btnPredictSample = document.getElementById('btn-predict-sample');
   const predictAnimateCheckbox = document.getElementById('predict-animate');
+  const decisionBoundaryColors = ['#4fc1ff', '#89d185', '#f48771', '#cca700', '#c586c0', '#ce9178'];
 
   let predictInputFields = []; // {el, colIdx, stat}
   let predictSampleTargets = null; // Float32Array when a sample is loaded
@@ -4320,19 +4328,143 @@ document.addEventListener('DOMContentLoaded', () => {
 
       predictInputFields.push({ el: input, colIdx, stat: pd.featureStats[i] });
     });
+
+    renderDecisionBoundary();
+  }
+
+  function normalizePredictValue(value, stat) {
+    if (stat.norm === 'minmax') {
+      const range = stat.max - stat.min;
+      return range > 0 ? (value - stat.min) / range : 0;
+    }
+
+    if (stat.norm === 'standard') {
+      return (value - stat.mean) / stat.std;
+    }
+
+    return value;
   }
 
   function normalizeInputForPredict() {
-    return predictInputFields.map(f => {
-      let v = parseFloat(f.el.value) || 0;
-      if (f.stat.norm === 'minmax') {
-        const range = f.stat.max - f.stat.min;
-        v = range > 0 ? (v - f.stat.min) / range : 0;
-      } else if (f.stat.norm === 'standard') {
-        v = (v - f.stat.mean) / f.stat.std;
+    return predictInputFields.map(f => normalizePredictValue(parseFloat(f.el.value) || 0, f.stat));
+  }
+
+  function setDecisionBoundaryState(message) {
+    decisionBoundarySection.style.display = '';
+    decisionBoundaryNote.textContent = message;
+  }
+
+  function getPredictionClass(outputs) {
+    if (!outputs || outputs.length === 0) return 0;
+    if (outputs.length === 1) return outputs[0] >= 0.5 ? 1 : 0;
+    return outputs.indexOf(Math.max(...outputs));
+  }
+
+  function getTargetClassFromRow(row, targetCols) {
+    if (!targetCols || targetCols.length === 0) return 0;
+    if (targetCols.length === 1) return (parseFloat(row[targetCols[0]]) || 0) >= 0.5 ? 1 : 0;
+
+    let bestIdx = 0;
+    let bestValue = -Infinity;
+    targetCols.forEach((colIdx, index) => {
+      const value = parseFloat(row[colIdx]) || 0;
+      if (value > bestValue) {
+        bestValue = value;
+        bestIdx = index;
       }
-      return v;
     });
+    return bestIdx;
+  }
+
+  function renderDecisionBoundary() {
+    if (!decisionBoundaryCanvas || !decisionBoundarySection) return;
+
+    if (!trainingState.preparedData || !dataset || dataset.rows.length === 0) {
+      setDecisionBoundaryState('Train a model with a 2D dataset to see the decision boundary.');
+      return;
+    }
+
+    const pd = trainingState.preparedData;
+    if (pd.featureCols.length !== 2) {
+      setDecisionBoundaryState('Decision boundary preview is available for datasets with exactly 2 input features.');
+      return;
+    }
+
+    if (!wasmBridge.ready) {
+      setDecisionBoundaryState('The WASM backend is still loading.');
+      return;
+    }
+
+    const width = Math.max(220, decisionBoundaryCanvas.clientWidth || 260);
+    const height = 220;
+    const dpr = window.devicePixelRatio || 1;
+    decisionBoundaryCanvas.width = width * dpr;
+    decisionBoundaryCanvas.height = height * dpr;
+    const plotCtx = decisionBoundaryCanvas.getContext('2d');
+    plotCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const featureX = pd.featureStats[0];
+    const featureY = pd.featureStats[1];
+    const xPad = Math.max(0.25, (featureX.max - featureX.min) * 0.12);
+    const yPad = Math.max(0.25, (featureY.max - featureY.min) * 0.12);
+    const xMin = featureX.min - xPad;
+    const xMax = featureX.max + xPad;
+    const yMin = featureY.min - yPad;
+    const yMax = featureY.max + yPad;
+
+    const toCanvasX = value => ((value - xMin) / Math.max(xMax - xMin, 0.001)) * width;
+    const toCanvasY = value => height - ((value - yMin) / Math.max(yMax - yMin, 0.001)) * height;
+
+    plotCtx.clearRect(0, 0, width, height);
+    plotCtx.fillStyle = '#11161c';
+    plotCtx.fillRect(0, 0, width, height);
+
+    const cellSize = 5;
+    for (let px = 0; px < width; px += cellSize) {
+      for (let py = 0; py < height; py += cellSize) {
+        const rawX = xMin + (px / width) * (xMax - xMin);
+        const rawY = yMin + ((height - py) / height) * (yMax - yMin);
+        const outputs = wasmBridge.predict([
+          normalizePredictValue(rawX, featureX),
+          normalizePredictValue(rawY, featureY)
+        ]);
+        const classIndex = getPredictionClass(Array.from(outputs));
+        const color = decisionBoundaryColors[classIndex % decisionBoundaryColors.length];
+        plotCtx.fillStyle = color + '22';
+        plotCtx.fillRect(px, py, cellSize, cellSize);
+      }
+    }
+
+    const stride = Math.max(1, Math.ceil(dataset.rows.length / 400));
+    for (let i = 0; i < dataset.rows.length; i += stride) {
+      const row = dataset.rows[i];
+      const rawX = parseFloat(row[pd.featureCols[0]]);
+      const rawY = parseFloat(row[pd.featureCols[1]]);
+      if (!Number.isFinite(rawX) || !Number.isFinite(rawY)) continue;
+
+      const classIndex = getTargetClassFromRow(row, pd.targetCols);
+      const color = decisionBoundaryColors[classIndex % decisionBoundaryColors.length];
+      plotCtx.beginPath();
+      plotCtx.arc(toCanvasX(rawX), toCanvasY(rawY), 3.2, 0, Math.PI * 2);
+      plotCtx.fillStyle = color;
+      plotCtx.fill();
+      plotCtx.lineWidth = 1;
+      plotCtx.strokeStyle = '#ffffff';
+      plotCtx.stroke();
+    }
+
+    plotCtx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+    plotCtx.lineWidth = 1;
+    plotCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
+
+    plotCtx.fillStyle = 'rgba(255, 255, 255, 0.82)';
+    plotCtx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+    plotCtx.textAlign = 'left';
+    plotCtx.fillText(dataset.columns[pd.featureCols[0]]?.name || 'x1', 8, height - 8);
+    plotCtx.textAlign = 'right';
+    plotCtx.fillText(dataset.columns[pd.featureCols[1]]?.name || 'x2', width - 8, 16);
+
+    setDecisionBoundaryState('Updated from the current trained weights for 2D classification data.');
   }
 
   function displayPredictOutputs(outputs) {
@@ -4637,6 +4769,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = wasmBridge.predict(normalized);
         if (result) {
           displayPredictOutputs(Array.from(result));
+          renderDecisionBoundary();
           logOutput(`Prediction: [${Array.from(result).map(v => v.toFixed(4)).join(', ')}]`, 'info');
         }
         btnPredictRun.disabled = false;
@@ -4650,6 +4783,7 @@ document.addEventListener('DOMContentLoaded', () => {
         viewport.showActivations = true;
         render();
         displayPredictOutputs(Array.from(result));
+        renderDecisionBoundary();
         logOutput(`Prediction: [${Array.from(result).map(v => v.toFixed(4)).join(', ')}]`, 'info');
       } else {
         logOutput('Prediction failed.', 'error');
