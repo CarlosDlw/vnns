@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Menubar dropdowns
   const menuItems = document.querySelectorAll('.menubar .menu-item');
+  const themeStorageKey = 'vnns-theme';
   let activeMenu = null;
 
   function closeAllMenus() {
@@ -79,6 +80,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (action) handleMenuAction(action);
     });
   });
+
+  function applyTheme(theme) {
+    const nextTheme = theme === 'light' ? 'light' : 'dark';
+    document.body.dataset.theme = nextTheme;
+    localStorage.setItem(themeStorageKey, nextTheme);
+  }
+
+  function toggleTheme() {
+    applyTheme(document.body.dataset.theme === 'light' ? 'dark' : 'light');
+  }
+
+  applyTheme(localStorage.getItem(themeStorageKey) || 'dark');
 
   const leftActivityIcons = document.querySelectorAll('.activitybar .activity-icon');
   const sidebarViews = document.querySelectorAll('.sidebar-view');
@@ -3833,6 +3846,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       case 'menu-toggle-activations':
         document.getElementById('toggle-activations').click();
+        break;
+
+      case 'menu-toggle-theme':
+        toggleTheme();
         break;
 
       case 'menu-panel-create':
