@@ -769,17 +769,46 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   btnGenerate.addEventListener('click', () => {
-    const rows = 200;
-    const headers = ['x1', 'x2', 'x3', 'y'];
-    const data = [];
-    for (let i = 0; i < rows; i++) {
-      const x1 = Math.random() * 10;
-      const x2 = Math.random() * 5;
-      const x3 = Math.random() * 2;
-      const y = (x1 * 0.5 + x2 * 0.3 + x3 * 0.2 + Math.random() * 0.5) > 4 ? 1 : 0;
-      data.push({ x1: +x1.toFixed(4), x2: +x2.toFixed(4), x3: +x3.toFixed(4), y });
+    const kindInput = prompt(
+      'Choose synthetic dataset:\nmoons, circles, spiral, blobs, checkerboard',
+      'moons'
+    );
+    if (!kindInput) return;
+
+    const kind = kindInput.trim().toLowerCase();
+    const countInput = prompt('Sample count (minimum 200):', '240');
+    if (!countInput) return;
+    const sampleCount = Math.max(200, parseInt(countInput, 10) || 240);
+
+    const noiseInput = prompt('Noise level (0 to 1):', '0.08');
+    if (!noiseInput) return;
+    const noise = Math.max(0, parseFloat(noiseInput) || 0.08);
+
+    let data;
+    if (kind === 'blobs' || kind === 'gaussian blobs' || kind === 'gaussian') {
+      const clusterInput = prompt('Number of clusters:', '4');
+      if (!clusterInput) return;
+      const clusters = Math.max(2, parseInt(clusterInput, 10) || 4);
+      data = generateGaussianBlobsDataset(sampleCount, noise, clusters);
+    } else {
+      const generators = {
+        moons: generateMoonsDataset,
+        circles: generateCirclesDataset,
+        spiral: generateSpiralDataset,
+        checkerboard: generateCheckerboardDataset
+      };
+
+      const generator = generators[kind];
+      if (!generator) {
+        alert('Unknown dataset type. Use moons, circles, spiral, blobs, or checkerboard.');
+        return;
+      }
+
+      data = generator(sampleCount, noise);
     }
+
     parseJSON(JSON.stringify(data));
+    logOutput(`Generated ${kind} dataset — ${data.length} samples`, 'success');
   });
 
   // --- Manual Dataset Editor ---
@@ -4055,6 +4084,124 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Template Dataset Generators ---
+
+  function createSeededRandom(seed) {
+    return () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 0xffffffff;
+    };
+  }
+
+  function addNoise(value, noise, rand) {
+    return value + (rand() - 0.5) * noise * 2;
+  }
+
+  function toPointRow(x1, x2, y) {
+    return {
+      x1: +x1.toFixed(4),
+      x2: +x2.toFixed(4),
+      y
+    };
+  }
+
+  function generateMoonsDataset(sampleCount = 240, noise = 0.08) {
+    const rand = createSeededRandom(101);
+    const rows = [];
+    const half = Math.floor(sampleCount / 2);
+
+    for (let i = 0; i < sampleCount; i++) {
+      const angle = Math.PI * (i % half) / Math.max(half - 1, 1);
+
+      if (i < half) {
+        const x = Math.cos(angle);
+        const y = Math.sin(angle);
+        rows.push(toPointRow(addNoise(x, noise, rand), addNoise(y, noise, rand), 0));
+      } else {
+        const x = 1 - Math.cos(angle);
+        const y = -Math.sin(angle) + 0.5;
+        rows.push(toPointRow(addNoise(x, noise, rand), addNoise(y, noise, rand), 1));
+      }
+    }
+
+    return rows;
+  }
+
+  function generateCirclesDataset(sampleCount = 240, noise = 0.08) {
+    const rand = createSeededRandom(202);
+    const rows = [];
+    const half = Math.floor(sampleCount / 2);
+
+    for (let i = 0; i < sampleCount; i++) {
+      const angle = (Math.PI * 2 * (i % half)) / Math.max(half, 1);
+      const radius = i < half ? 1 : 0.45;
+      const label = i < half ? 0 : 1;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      rows.push(toPointRow(addNoise(x, noise, rand), addNoise(y, noise, rand), label));
+    }
+
+    return rows;
+  }
+
+  function generateSpiralDataset(sampleCount = 240, noise = 0.08) {
+    const rand = createSeededRandom(303);
+    const rows = [];
+    const half = Math.floor(sampleCount / 2);
+
+    for (let i = 0; i < sampleCount; i++) {
+      const t = (i % half) / Math.max(half - 1, 1);
+      const angle = t * Math.PI * 4;
+      const radius = 0.2 + t * 1.8;
+      const phase = i < half ? 0 : Math.PI;
+      const x = Math.cos(angle + phase) * radius;
+      const y = Math.sin(angle + phase) * radius;
+      rows.push(toPointRow(addNoise(x, noise, rand), addNoise(y, noise, rand), i < half ? 0 : 1));
+    }
+
+    return rows;
+  }
+
+  function generateGaussianBlobsDataset(sampleCount = 240, noise = 0.08, clusterCount = 4) {
+    const rand = createSeededRandom(404);
+    const rows = [];
+    const centers = Array.from({ length: clusterCount }, (_, i) => {
+      const angle = (Math.PI * 2 * i) / clusterCount;
+      return {
+        x: Math.cos(angle) * 1.8,
+        y: Math.sin(angle) * 1.8
+      };
+    });
+
+    for (let i = 0; i < sampleCount; i++) {
+      const label = i % clusterCount;
+      const center = centers[label];
+      rows.push(
+        toPointRow(
+          addNoise(center.x, noise * 1.6, rand),
+          addNoise(center.y, noise * 1.6, rand),
+          label
+        )
+      );
+    }
+
+    return rows;
+  }
+
+  function generateCheckerboardDataset(sampleCount = 240, noise = 0.08) {
+    const rand = createSeededRandom(505);
+    const rows = [];
+
+    for (let i = 0; i < sampleCount; i++) {
+      const rawX = rand() * 4 - 2;
+      const rawY = rand() * 4 - 2;
+      const x = addNoise(rawX, noise, rand);
+      const y = addNoise(rawY, noise, rand);
+      const label = (Math.floor(rawX) + Math.floor(rawY)) % 2 === 0 ? 0 : 1;
+      rows.push(toPointRow(x, y, label));
+    }
+
+    return rows;
+  }
 
   function generateXORDataset() {
     // 4 canonical XOR patterns + 96 noisy variations = 100 samples
