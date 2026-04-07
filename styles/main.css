@@ -120,7 +120,7 @@ body {
   left: 0;
   min-width: 240px;
   background: var(--bg-panel);
-  border: 1px solid #454545;
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   box-shadow: 0 4px 16px var(--shadow-elevated);
   padding: 4px 0;
@@ -163,7 +163,7 @@ body {
 }
 
 .menu-dropdown-item:hover .menu-shortcut {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-primary);
 }
 
 .menu-separator {
@@ -231,12 +231,12 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #858585;
+  color: var(--text-subtle);
   position: relative;
 }
 
 .activity-icon:hover {
-  color: #c5c5c5;
+  color: var(--text-primary);
 }
 
 .activity-icon.active {
@@ -697,7 +697,7 @@ body {
 }
 
 .output-log .log-info {
-  color: #3794ff;
+  color: var(--accent-text);
 }
 
 .output-log .log-warn {
@@ -705,7 +705,7 @@ body {
 }
 
 .output-log .log-error {
-  color: #f14c4c;
+  color: var(--danger);
 }
 
 .output-log .log-success {
@@ -754,7 +754,7 @@ body {
   justify-content: center;
   gap: 8px;
   padding: 40px 20px;
-  color: #666;
+  color: var(--text-subtle);
   font-size: 12px;
 }
 
@@ -774,7 +774,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-muted);
-  background: #2a2a2a;
+  background: var(--bg-surface);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -783,7 +783,7 @@ body {
 }
 
 .props-group-header:hover {
-  background: #2f2f2f;
+  background: var(--bg-surface-alt);
 }
 
 .props-group-header .codicon {
@@ -807,23 +807,23 @@ body {
 
 .props-label {
   font-size: 11px;
-  color: #999;
+  color: var(--text-muted);
   min-width: 75px;
   flex-shrink: 0;
 }
 
 .props-value {
   font-size: 11px;
-  color: #ccc;
+  color: var(--text-primary);
   font-family: 'Consolas', 'Monaco', monospace;
 }
 
 .props-input {
   flex: 1;
   background: var(--bg-surface-alt);
-  border: 1px solid #555;
+  border: 1px solid var(--border-strong);
   border-radius: 3px;
-  color: #ccc;
+  color: var(--text-primary);
   font-size: 11px;
   padding: 3px 6px;
   font-family: 'Consolas', 'Monaco', monospace;
@@ -838,9 +838,9 @@ body {
 .props-select {
   flex: 1;
   background: var(--bg-surface-alt);
-  border: 1px solid #555;
+  border: 1px solid var(--border-strong);
   border-radius: 3px;
-  color: #ccc;
+  color: var(--text-primary);
   font-size: 11px;
   padding: 3px 4px;
   outline: none;
@@ -854,7 +854,7 @@ body {
 .props-color-input {
   width: 28px;
   height: 22px;
-  border: 1px solid #555;
+  border: 1px solid var(--border-strong);
   border-radius: 3px;
   background: none;
   padding: 0;
@@ -869,7 +869,7 @@ body {
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: #ccc;
+  color: var(--text-primary);
   cursor: pointer;
 }
 
@@ -884,8 +884,8 @@ body {
   padding: 2px 0;
 }
 
-.props-stat-label { color: #888; }
-.props-stat-value { color: #ccc; font-family: 'Consolas', 'Monaco', monospace; }
+.props-stat-label { color: var(--text-muted); }
+.props-stat-value { color: var(--text-primary); font-family: 'Consolas', 'Monaco', monospace; }
 
 .source-buttons {
   display: flex;
@@ -922,7 +922,7 @@ body {
   background: var(--accent-strong);
   border: 1px solid var(--accent-strong);
   border-radius: 4px;
-  color: var(--text-strong);
+  color: #ffffff;
   font-size: 11px;
   font-family: inherit;
   cursor: pointer;
@@ -1313,7 +1313,7 @@ body {
 .modal-btn-primary {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
-  color: var(--text-strong);
+  color: #ffffff;
 }
 
 .modal-btn-primary:hover {
@@ -1339,7 +1339,7 @@ body {
 }
 
 .modal-input::placeholder {
-  color: #5a5a5a;
+  color: var(--text-subtle);
 }
 
 /* Dataset Editor Modal */
@@ -1406,7 +1406,7 @@ body {
 }
 
 .de-danger {
-  color: #f14c4c;
+  color: var(--danger);
 }
 
 .de-danger:hover {
@@ -1416,7 +1416,7 @@ body {
 .de-primary {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
-  color: var(--text-strong);
+  color: #ffffff;
 }
 
 .de-primary:hover {
@@ -1467,13 +1467,13 @@ body {
 
 .de-table th input {
   font-weight: 600;
-  color: #3794ff;
+  color: var(--accent-text);
   font-family: inherit;
 }
 
 .de-table th input::placeholder,
 .de-table td input::placeholder {
-  color: #555;
+  color: var(--text-subtle);
 }
 
 .de-table td input:focus,
@@ -1486,7 +1486,7 @@ body {
   min-width: 36px;
   max-width: 36px;
   text-align: center;
-  color: #555;
+  color: var(--text-subtle);
   font-size: 10px;
   background: var(--bg-app);
   padding: 5px 0;
@@ -1514,7 +1514,7 @@ body {
 
 .de-role-item .de-col-name {
   font-weight: 600;
-  color: #3794ff;
+  color: var(--accent-text);
   max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1580,7 +1580,7 @@ body {
 }
 
 .canvas-tooltip .tt-value {
-  color: #3794ff;
+  color: var(--accent-text);
   font-family: 'Consolas', monospace;
 }
 
@@ -1589,7 +1589,7 @@ body {
 }
 
 .canvas-tooltip .tt-value.negative {
-  color: #f14c4c;
+  color: var(--danger);
 }
 .context-toolbar {
   position: absolute;
@@ -1723,7 +1723,7 @@ body {
 .ctx-act-pill.active {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
-  color: var(--text-strong);
+  color: #ffffff;
 }
 
 /* Canvas Context Menu */
@@ -1732,7 +1732,7 @@ body {
   z-index: 200;
   min-width: 200px;
   background: var(--bg-panel);
-  border: 1px solid #454545;
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   box-shadow: 0 4px 16px var(--shadow-elevated);
   padding: 4px 0;
@@ -1785,13 +1785,13 @@ body {
 }
 
 .ctxmenu-item.disabled {
-  color: #5a5a5a;
+  color: var(--text-subtle);
   cursor: default;
   pointer-events: none;
 }
 
 .ctxmenu-item.disabled .codicon {
-  color: #5a5a5a;
+  color: var(--text-subtle);
 }
 
 .ctxmenu-separator {
@@ -1819,7 +1819,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #858585;
+  color: var(--text-subtle);
   font-size: 12px;
   padding: 12px 0;
 }
@@ -1869,7 +1869,7 @@ body {
 .predict-run-btn {
   background: var(--accent-strong) !important;
   border-color: var(--accent-strong) !important;
-  color: var(--text-strong) !important;
+  color: #ffffff !important;
   justify-content: center;
   font-weight: 500;
 }
@@ -1951,7 +1951,7 @@ body {
 }
 
 .predict-expected .predict-output-bar {
-  background: #2e7d32;
+  background: var(--success);
 }
 
 .predict-expected .predict-output-bar.highlight {
@@ -1981,10 +1981,10 @@ body {
 
 .decision-boundary-frame {
   margin-top: 4px;
-  border: 1px solid #3c3c3c;
+  border: 1px solid var(--bg-surface-alt);
   border-radius: 8px;
   overflow: hidden;
-  background: #1e1e1e;
+  background: var(--bg-app);
 }
 
 .decision-boundary-frame canvas {
@@ -1997,5 +1997,5 @@ body {
   margin-top: 8px;
   font-size: 11px;
   line-height: 1.5;
-  color: #969696;
+  color: var(--text-muted);
 }

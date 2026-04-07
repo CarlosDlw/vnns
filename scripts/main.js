@@ -81,10 +81,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  function isLightTheme() { return document.body.dataset.theme === 'light'; }
+
+  let initialized = false;
+
   function applyTheme(theme) {
     const nextTheme = theme === 'light' ? 'light' : 'dark';
     document.body.dataset.theme = nextTheme;
     localStorage.setItem(themeStorageKey, nextTheme);
+    if (initialized) render();
   }
 
   function toggleTheme() {
@@ -1434,7 +1439,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const offsetX = (viewport.x + w / 2) % gs;
     const offsetY = (viewport.y + h / 2) % gs;
 
-    ctx.strokeStyle = viewport.zoom > 1.5 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)';
+    ctx.strokeStyle = isLightTheme()
+      ? (viewport.zoom > 1.5 ? 'rgba(0,0,0,0.07)' : 'rgba(0,0,0,0.04)')
+      : (viewport.zoom > 1.5 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)');
     ctx.lineWidth = 1;
 
     ctx.beginPath();
@@ -1453,7 +1460,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const bigOffsetX = (viewport.x + w / 2) % bigGs;
       const bigOffsetY = (viewport.y + h / 2) % bigGs;
 
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.strokeStyle = isLightTheme() ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
       ctx.beginPath();
       for (let x = bigOffsetX; x < w; x += bigGs) {
         ctx.moveTo(Math.round(x) + 0.5, 0);
@@ -1543,15 +1550,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function drawLayerBox(layer, color, isSelected) {
     const r = getLayerScreenRect(layer);
+    const light = isLightTheme();
 
     const isDrop = isDropTarget(layer);
     ctx.fillStyle = isDrop ? 'rgba(79, 193, 255, 0.15)' : 
-                   isSelected ? 'rgba(79, 193, 255, 0.08)' : 
-                   'rgba(30, 30, 30, 0.6)';
+                   isSelected ? (light ? 'rgba(37, 99, 235, 0.12)' : 'rgba(79, 193, 255, 0.08)') : 
+                   light ? 'rgba(255, 255, 255, 0.7)' : 'rgba(30, 30, 30, 0.6)';
     ctx.fillRect(r.x, r.y, r.w, r.h);
 
     ctx.strokeStyle = isDrop ? '#00bfff' : 
-                     isSelected ? '#4fc1ff' : 
+                     isSelected ? (light ? '#2563eb' : '#4fc1ff') : 
                      color;
     ctx.lineWidth = isDrop ? 3 : (isSelected ? 2 : 1);
     if (isDrop || isSelected) {
@@ -1561,7 +1569,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.setLineDash([]);
 
     if (viewport.zoom > 0.3) {
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillStyle = light ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255,255,255,0.6)';
       ctx.font = `${Math.max(8, 10 * viewport.zoom)}px -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
@@ -1573,20 +1581,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const badgeText = `${neurons.length}n · ${act}`;
       const badgeFontSize = Math.max(7, 8 * viewport.zoom);
       ctx.font = `${badgeFontSize}px -apple-system, sans-serif`;
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillStyle = light ? 'rgba(15, 23, 42, 0.45)' : 'rgba(255,255,255,0.35)';
       ctx.textBaseline = 'bottom';
       ctx.fillText(badgeText, r.cx, r.y + r.h - 3);
     } else if (viewport.zoom < 0.25) {
       // Minimal mode: larger text showing layer name and neuron count
       const neurons = network.getNeuronsByLayer(layer.id);
       const fontSize = Math.max(10, 14 * viewport.zoom / 0.25);
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillStyle = light ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255,255,255,0.85)';
       ctx.font = `bold ${fontSize}px -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`${layer.name}`, r.cx, r.cy - fontSize * 0.5);
       ctx.font = `${fontSize * 0.8}px -apple-system, sans-serif`;
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillStyle = light ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255,255,255,0.5)';
       ctx.fillText(`${neurons.length} neurons`, r.cx, r.cy + fontSize * 0.5);
     }
   }
@@ -1668,7 +1676,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const midY = (startY + endY) / 2;
         const fontSize = Math.max(8, 11 * viewport.zoom / 0.25);
         ctx.font = `${fontSize}px -apple-system, sans-serif`;
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fillStyle = isLightTheme() ? 'rgba(15, 23, 42, 0.6)' : 'rgba(255,255,255,0.5)';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.fillText(`${count}`, midX, midY - 3);
@@ -1731,7 +1739,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
       ctx.fillStyle = fillColor;
       ctx.fill();
-      ctx.strokeStyle = isSelected ? '#ffffff' : 'rgba(255,255,255,0.3)';
+      ctx.strokeStyle = isSelected ? (isLightTheme() ? '#1d4ed8' : '#ffffff') : (isLightTheme() ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.3)');
       ctx.lineWidth = isSelected ? 2 : 1;
       ctx.stroke();
 
@@ -1744,7 +1752,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (viewport.zoom > 0.5) {
-        ctx.fillStyle = '#ffffff';
+        // Pick label color based on fill luminance for contrast
+        let labelColor = isLightTheme() ? '#0f172a' : '#ffffff';
+        if (viewport.showActivations && neuronActivations.has(neuron.id) && !isSelected) {
+          const act = neuronActivations.get(neuron.id);
+          const norm = act >= 0 && act <= 1 ? act : 1 / (1 + Math.exp(-act));
+          const r255 = Math.round(40 + norm * 215);
+          const g255 = Math.round(40 + norm * 200);
+          const b255 = Math.round(60 - norm * 30);
+          const lum = (0.299 * r255 + 0.587 * g255 + 0.114 * b255) / 255;
+          labelColor = lum > 0.5 ? '#0f172a' : '#ffffff';
+        }
+        ctx.fillStyle = labelColor;
         ctx.font = `${Math.max(8, 9 * viewport.zoom)}px Consolas, Monaco, monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -1830,7 +1849,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const fontSize = Math.max(9, 13 * viewport.zoom);
 
       ctx.font = `${fontSize}px -apple-system, sans-serif`;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.fillStyle = isLightTheme() ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.5)';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(note.text, pos.x, pos.y);
@@ -5093,4 +5112,5 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   resizeCanvas();
+  initialized = true;
 });
