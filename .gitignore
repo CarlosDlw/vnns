@@ -2,6 +2,7 @@
 backend/build/*.o
 backend/build/libvnns.a
 
+
 # Editor
 .vscode/
 
@@ -11,3 +12,6 @@ Thumbs.db
 
 # Dev notes
 implementation_canva_ideas.md
+
+# Document plans
+REVIEW_PLAN.md

@@ -482,6 +482,25 @@
 
   <input type="file" id="import-json-input" accept=".json" style="display:none">
 
+  <div class="modal" id="confirm-modal" style="display:none">
+    <div class="modal-overlay"></div>
+    <div class="modal-content" style="min-width:320px;max-width:400px">
+      <div class="modal-header">
+        <span class="modal-title" id="confirm-modal-title">Confirm</span>
+        <button class="modal-close" id="confirm-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <span id="confirm-modal-message"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-secondary" id="confirm-modal-cancel">Cancel</button>
+        <button class="modal-btn modal-btn-primary" id="confirm-modal-ok">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" id="synthetic-modal" style="display:none">
     <div class="modal-overlay"></div>
     <div class="modal-content" style="min-width:340px;max-width:420px">

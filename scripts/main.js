@@ -846,6 +846,25 @@ document.addEventListener('DOMContentLoaded', () => {
     synModal.style.display = 'none';
   });
 
+  // --- Confirm Modal ---
+  function showConfirmModal(title, message, onConfirm) {
+    const modal = document.getElementById('confirm-modal');
+    document.getElementById('confirm-modal-title').textContent = title;
+    document.getElementById('confirm-modal-message').textContent = message;
+    modal.style.display = '';
+    const cleanup = () => { modal.style.display = 'none'; ok.removeEventListener('click', handleOk); cancel.removeEventListener('click', handleCancel); closeBtn.removeEventListener('click', handleCancel); overlay.removeEventListener('click', handleCancel); };
+    const handleOk = () => { cleanup(); onConfirm(); };
+    const handleCancel = () => { cleanup(); };
+    const ok = document.getElementById('confirm-modal-ok');
+    const cancel = document.getElementById('confirm-modal-cancel');
+    const closeBtn = document.getElementById('confirm-modal-close');
+    const overlay = modal.querySelector('.modal-overlay');
+    ok.addEventListener('click', handleOk);
+    cancel.addEventListener('click', handleCancel);
+    closeBtn.addEventListener('click', handleCancel);
+    overlay.addEventListener('click', handleCancel);
+  }
+
   // --- Manual Dataset Editor ---
   const deModal = document.getElementById('dataset-editor-modal');
   const deHead = document.getElementById('de-head');
@@ -3767,7 +3786,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleMenuAction(action) {
     switch (action) {
       case 'menu-new-network':
-        if (network.getAllLayers().length === 0 || confirm('Clear current network and start new?')) {
+        if (network.getAllLayers().length === 0) {
           saveState();
           network.getAllLayers().forEach(l => network.deleteLayer(l.id));
           selectedLayerIds.clear();
@@ -3777,6 +3796,18 @@ document.addEventListener('DOMContentLoaded', () => {
           zoomLevelEl.textContent = '100%';
           history.clear();
           render();
+        } else {
+          showConfirmModal('New Network', 'Clear current network and start new?', () => {
+            saveState();
+            network.getAllLayers().forEach(l => network.deleteLayer(l.id));
+            selectedLayerIds.clear();
+            selectedNeuronIds.clear();
+            notes = [];
+            viewport.x = 0; viewport.y = 0; viewport.zoom = 1;
+            zoomLevelEl.textContent = '100%';
+            history.clear();
+            render();
+          });
         }
         break;
 
@@ -4023,14 +4054,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function applyTemplate(config) {
     const layerDefs = config.layers || config;
-    if (network.getAllLayers().length > 0 && !confirm('This will replace the current network. Continue?')) return;
-
-    saveState();
-    // Clear current network
-    network.getAllLayers().forEach(l => network.deleteLayer(l.id));
+    const doApply = () => {
+      saveState();
+      // Clear current network
+      network.getAllLayers().forEach(l => network.deleteLayer(l.id));
     selectedLayerIds.clear();
     selectedNeuronIds.clear();
     notes = [];
+    neuronActivations.clear();
+
+    // Clear decision boundary from previous training
+    const dbSection = document.getElementById('decision-boundary-section');
+    const dbCanvas = document.getElementById('decision-boundary-canvas');
+    if (dbSection) dbSection.style.display = 'none';
+    if (dbCanvas) { const c = dbCanvas.getContext('2d'); c.clearRect(0, 0, dbCanvas.width, dbCanvas.height); }
 
     const colors = ['#0e639c', '#2a7a3a', '#6a3d99', '#a35200', '#8b0000', '#4a4a8a', '#1a6e5a', '#b5862a'];
 
@@ -4127,6 +4164,13 @@ document.addEventListener('DOMContentLoaded', () => {
     logOutput(`Template applied: ${layerDefs.map(d => d.neurons).join(' → ')} (${createdLayers.length} layers, ${totalNeurons} neurons)`, 'success');
     if (config.params) {
       logOutput(`Training config: ${config.params.optimizer}, LR=${config.params.lr}, Epochs=${config.params.epochs}, Batch=${config.params.batch}, Loss=${config.params.loss}`, 'info');
+    }
+    };
+
+    if (network.getAllLayers().length > 0) {
+      showConfirmModal('Apply Template', 'This will replace the current network. Continue?', doApply);
+    } else {
+      doApply();
     }
   }
 
@@ -4540,8 +4584,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function setDecisionBoundaryState(message) {
-    decisionBoundarySection.style.display = '';
-    decisionBoundaryNote.textContent = message;
+    // Hide the entire section and fully reset canvas
+    decisionBoundarySection.style.display = 'none';
+    if (decisionBoundaryCanvas) {
+      decisionBoundaryCanvas.width = decisionBoundaryCanvas.width; // full reset (clears content + transform)
+    }
   }
 
   function getPredictionClass(outputs) {
@@ -4585,9 +4632,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const width = Math.max(220, decisionBoundaryCanvas.clientWidth || 260);
-    const height = 220;
+    // Make section visible before measuring dimensions
+    decisionBoundarySection.style.display = '';
+    decisionBoundaryNote.textContent = '';
+
     const dpr = window.devicePixelRatio || 1;
+    const width = Math.max(200, decisionBoundaryCanvas.clientWidth || 220);
+    const height = Math.max(200, decisionBoundaryCanvas.clientHeight || 220);
     decisionBoundaryCanvas.width = width * dpr;
     decisionBoundaryCanvas.height = height * dpr;
     const plotCtx = decisionBoundaryCanvas.getContext('2d');
@@ -4618,9 +4669,10 @@ document.addEventListener('DOMContentLoaded', () => {
           normalizePredictValue(rawX, featureX),
           normalizePredictValue(rawY, featureY)
         ]);
+        if (!outputs || outputs.length === 0) continue;
         const classIndex = getPredictionClass(Array.from(outputs));
         const color = decisionBoundaryColors[classIndex % decisionBoundaryColors.length];
-        plotCtx.fillStyle = color + '22';
+        plotCtx.fillStyle = color + '44';
         plotCtx.fillRect(px, py, cellSize, cellSize);
       }
     }
@@ -4654,7 +4706,7 @@ document.addEventListener('DOMContentLoaded', () => {
     plotCtx.textAlign = 'right';
     plotCtx.fillText(dataset.columns[pd.featureCols[1]]?.name || 'x2', width - 8, 16);
 
-    setDecisionBoundaryState('Updated from the current trained weights for 2D classification data.');
+    decisionBoundaryNote.textContent = '';
   }
 
   function displayPredictOutputs(outputs) {
