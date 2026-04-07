@@ -1924,3 +1924,24 @@ body {
   background: rgba(244, 135, 113, 0.15);
   color: #f48771;
 }
+
+.decision-boundary-frame {
+  margin-top: 4px;
+  border: 1px solid #3c3c3c;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1e1e1e;
+}
+
+.decision-boundary-frame canvas {
+  display: block;
+  width: 100%;
+  height: 220px;
+}
+
+.decision-boundary-note {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #969696;
+}
