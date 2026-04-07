@@ -1685,8 +1685,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const p2 = getNeuronScreenPos(to);
 
       ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
+      traceConnectionCurve(ctx, p1, p2);
       const isSelected = selectedNeuronIds.has(conn.fromNeuron) || 
                         selectedNeuronIds.has(conn.toNeuron) ||
                         (selectedLayerIds.has(conn.fromLayer) && selectedLayerIds.has(conn.toLayer));
@@ -1716,11 +1715,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const from = network.getNeuron(connectFrom);
       if (from) {
         const p1 = getNeuronScreenPos(from);
-        const rect = canvas.getBoundingClientRect();
         const p2 = worldToScreen(mouseWorldPos.x, mouseWorldPos.y);
         ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
+        traceConnectionCurve(ctx, p1, p2);
         const toNeuron = hitTestNeuron(p2.x, p2.y);
         ctx.strokeStyle = toNeuron ? 'rgba(255, 100, 100, 0.8)' : 'rgba(79, 193, 255, 0.6)';
         ctx.lineWidth = 2;
@@ -1742,6 +1739,22 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.textBaseline = 'top';
       ctx.fillText(note.text, pos.x, pos.y);
     });
+  }
+
+  function traceConnectionCurve(context, p1, p2) {
+    const dx = p2.x - p1.x;
+    const direction = dx >= 0 ? 1 : -1;
+    const handle = Math.min(180, Math.max(36, Math.abs(dx) * 0.45));
+
+    context.moveTo(p1.x, p1.y);
+    context.bezierCurveTo(
+      p1.x + handle * direction,
+      p1.y,
+      p2.x - handle * direction,
+      p2.y,
+      p2.x,
+      p2.y
+    );
   }
 
   function render() {
@@ -2380,8 +2393,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const p1 = worldToMini(from.position.x, from.position.y);
       const p2 = worldToMini(to.position.x, to.position.y);
       minimapCtx.beginPath();
-      minimapCtx.moveTo(p1.x, p1.y);
-      minimapCtx.lineTo(p2.x, p2.y);
+      traceConnectionCurve(minimapCtx, p1, p2);
       minimapCtx.stroke();
     });
 
