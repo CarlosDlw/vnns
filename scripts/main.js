@@ -768,28 +768,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // --- Synthetic Dataset Modal ---
+  const synModal = document.getElementById('synthetic-modal');
+  const synType = document.getElementById('synthetic-type');
+  const synCount = document.getElementById('synthetic-count');
+  const synNoise = document.getElementById('synthetic-noise');
+  const synClusters = document.getElementById('synthetic-clusters');
+  const synClustersSection = document.getElementById('synthetic-clusters-section');
+
+  synType.addEventListener('change', () => {
+    synClustersSection.style.display = synType.value === 'blobs' ? '' : 'none';
+  });
+
   btnGenerate.addEventListener('click', () => {
-    const kindInput = prompt(
-      'Choose synthetic dataset:\nmoons, circles, spiral, blobs, checkerboard',
-      'moons'
-    );
-    if (!kindInput) return;
+    synModal.style.display = 'flex';
+  });
 
-    const kind = kindInput.trim().toLowerCase();
-    const countInput = prompt('Sample count (minimum 200):', '240');
-    if (!countInput) return;
-    const sampleCount = Math.max(200, parseInt(countInput, 10) || 240);
+  document.getElementById('synthetic-confirm').addEventListener('click', () => {
+    const kind = synType.value;
+    const rawCount = parseInt(synCount.value, 10);
+    const rawNoise = parseFloat(synNoise.value);
 
-    const noiseInput = prompt('Noise level (0 to 1):', '0.08');
-    if (!noiseInput) return;
-    const noise = Math.max(0, parseFloat(noiseInput) || 0.08);
+    // Validations
+    if (isNaN(rawCount) || rawCount < 10 || rawCount > 10000) {
+      synCount.style.outline = '1px solid #f48771';
+      logOutput('Sample count must be between 10 and 10,000', 'error');
+      return;
+    }
+    synCount.style.outline = '';
+
+    if (isNaN(rawNoise) || rawNoise < 0 || rawNoise > 1) {
+      synNoise.style.outline = '1px solid #f48771';
+      logOutput('Noise level must be between 0 and 1', 'error');
+      return;
+    }
+    synNoise.style.outline = '';
+
+    const sampleCount = rawCount;
+    const noise = rawNoise;
 
     let data;
-    if (kind === 'blobs' || kind === 'gaussian blobs' || kind === 'gaussian') {
-      const clusterInput = prompt('Number of clusters:', '4');
-      if (!clusterInput) return;
-      const clusters = Math.max(2, parseInt(clusterInput, 10) || 4);
-      data = generateGaussianBlobsDataset(sampleCount, noise, clusters);
+    if (kind === 'blobs') {
+      const rawClusters = parseInt(synClusters.value, 10);
+      if (isNaN(rawClusters) || rawClusters < 2 || rawClusters > 20) {
+        synClusters.style.outline = '1px solid #f48771';
+        logOutput('Clusters must be between 2 and 20', 'error');
+        return;
+      }
+      synClusters.style.outline = '';
+      data = generateGaussianBlobsDataset(sampleCount, noise, rawClusters);
     } else {
       const generators = {
         moons: generateMoonsDataset,
@@ -797,18 +824,22 @@ document.addEventListener('DOMContentLoaded', () => {
         spiral: generateSpiralDataset,
         checkerboard: generateCheckerboardDataset
       };
-
-      const generator = generators[kind];
-      if (!generator) {
-        alert('Unknown dataset type. Use moons, circles, spiral, blobs, or checkerboard.');
-        return;
-      }
-
-      data = generator(sampleCount, noise);
+      data = generators[kind](sampleCount, noise);
     }
 
     parseJSON(JSON.stringify(data));
     logOutput(`Generated ${kind} dataset — ${data.length} samples`, 'success');
+    synModal.style.display = 'none';
+  });
+
+  document.getElementById('synthetic-cancel').addEventListener('click', () => {
+    synModal.style.display = 'none';
+  });
+  document.getElementById('synthetic-modal-close').addEventListener('click', () => {
+    synModal.style.display = 'none';
+  });
+  synModal.querySelector('.modal-overlay').addEventListener('click', () => {
+    synModal.style.display = 'none';
   });
 
   // --- Manual Dataset Editor ---
