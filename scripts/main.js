@@ -3588,6 +3588,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const tag = document.activeElement && document.activeElement.tagName;
     const isEditing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (document.activeElement && document.activeElement.isContentEditable);
 
+    if (e.key === 'F1') { e.preventDefault(); handleMenuAction('menu-learn'); return; }
+
     // Ctrl/Cmd shortcuts (must preventDefault early to block browser defaults)
     if (e.ctrlKey || e.metaKey) {
       if (e.key === 'z' || e.key === 'Z') {
@@ -3832,6 +3834,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const importJsonInput = document.getElementById('import-json-input');
   const shortcutsModal = document.getElementById('shortcuts-modal');
   const aboutModal = document.getElementById('about-modal');
+  const learnModal = document.getElementById('learn-modal');
 
   function switchPanel(viewName) {
     leftActivityIcons.forEach(i => {
@@ -4028,6 +4031,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       case 'menu-shortcuts':
         shortcutsModal.style.display = 'flex';
+        break;
+
+      case 'menu-learn':
+        learnModal.style.display = 'flex';
         break;
 
       case 'menu-about':
@@ -4561,9 +4568,20 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Modal close handlers for shortcuts & about
-  [shortcutsModal, aboutModal].forEach(modal => {
+  [shortcutsModal, aboutModal, learnModal].forEach(modal => {
     modal.querySelector('.modal-close').addEventListener('click', () => modal.style.display = 'none');
     modal.querySelector('.modal-overlay').addEventListener('click', () => modal.style.display = 'none');
+  });
+
+  // Learn modal topic navigation
+  learnModal.querySelectorAll('.learn-nav-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      learnModal.querySelector('.learn-nav-item.active')?.classList.remove('active');
+      learnModal.querySelector('.learn-topic.active')?.classList.remove('active');
+      btn.classList.add('active');
+      document.getElementById('learn-topic-' + btn.dataset.topic)?.classList.add('active');
+      document.getElementById('learn-content').scrollTop = 0;
+    });
   });
 
   // Keyboard shortcuts

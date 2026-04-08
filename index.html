@@ -79,6 +79,7 @@
       Help
       <div class="menu-dropdown" id="menu-help">
         <button class="menu-dropdown-item" data-action="menu-shortcuts"><span class="menu-shortcut-label">Keyboard Shortcuts</span><span class="menu-shortcut">?</span></button>
+        <button class="menu-dropdown-item" data-action="menu-learn"><span class="menu-shortcut-label">Learn About</span><span class="menu-shortcut">F1</span></button>
         <div class="menu-separator"></div>
         <button class="menu-dropdown-item" data-action="menu-about"><span class="menu-shortcut-label">About VNNS</span></button>
       </div>
@@ -577,6 +578,7 @@
           <div class="shortcut-row"><span class="shortcut-desc">Train panel</span><span class="shortcut-keys">3</span></div>
           <div class="shortcut-row"><span class="shortcut-desc">Predict panel</span><span class="shortcut-keys">4</span></div>
           <div class="shortcut-row"><span class="shortcut-desc">Keyboard shortcuts</span><span class="shortcut-keys">?</span></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Learn about</span><span class="shortcut-keys">F1</span></div>
         </div>
       </div>
     </div>
@@ -595,6 +597,559 @@
         <div style="font-size:11px;color:#969696;line-height:1.6">
           Design, visualize and train neural networks<br>directly in your browser.<br><br>
           Built with HTML Canvas + C/WebAssembly
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="learn-modal" style="display:none">
+    <div class="modal-overlay"></div>
+    <div class="modal-content" style="min-width:640px;max-width:760px">
+      <div class="modal-header">
+        <span class="modal-title">Learn About</span>
+        <button class="modal-close" id="learn-modal-close">&times;</button>
+      </div>
+      <div class="learn-layout">
+        <div class="learn-sidebar">
+          <div class="learn-nav-label">General</div>
+          <button class="learn-nav-item active" data-topic="vnns">VNNS</button>
+          <button class="learn-nav-item" data-topic="neural-network">Neural Networks</button>
+          <div class="learn-nav-label">Neural Network Concepts</div>
+          <button class="learn-nav-item" data-topic="neurons">Neurons</button>
+          <button class="learn-nav-item" data-topic="layers">Layers</button>
+          <button class="learn-nav-item" data-topic="weights-biases">Weights & Biases</button>
+          <button class="learn-nav-item" data-topic="activation-functions">Activation Functions</button>
+          <button class="learn-nav-item" data-topic="loss-functions">Loss Functions</button>
+          <button class="learn-nav-item" data-topic="backpropagation">Backpropagation</button>
+          <button class="learn-nav-item" data-topic="learning-rate">Learning Rate</button>
+          <button class="learn-nav-item" data-topic="overfitting">Overfitting</button>
+          <div class="learn-nav-label">VNNS Guides</div>
+          <button class="learn-nav-item" data-topic="guide-canvas">Canvas</button>
+          <button class="learn-nav-item" data-topic="guide-creating">Creating Networks</button>
+          <button class="learn-nav-item" data-topic="guide-datasets">Datasets</button>
+          <button class="learn-nav-item" data-topic="guide-training">Training</button>
+          <button class="learn-nav-item" data-topic="guide-predictions">Predictions</button>
+          <button class="learn-nav-item" data-topic="guide-properties">Properties</button>
+          <button class="learn-nav-item" data-topic="guide-import-export">Import & Export</button>
+          <button class="learn-nav-item" data-topic="guide-templates">Templates</button>
+        </div>
+        <div class="learn-content" id="learn-content">
+          <div class="learn-topic active" id="learn-topic-vnns">
+            <h3 class="learn-heading">VNNS — Visual Neural Network Sandbox</h3>
+            <p class="learn-text">VNNS is a browser-based tool that lets you design, visualize and train neural networks interactively, with no installation required.</p>
+            <p class="learn-text">You build your network visually on a canvas — adding layers, connecting neurons, and configuring parameters — then train it on your own data and watch the process in real time.</p>
+            <h4 class="learn-subheading">How it works</h4>
+            <p class="learn-text">The interface is split into a <strong>canvas</strong> where you see your network topology, and <strong>side panels</strong> for creating layers, loading datasets, configuring training, and running predictions.</p>
+            <p class="learn-text">Under the hood, the neural network engine is written in <strong>C</strong> and compiled to <strong>WebAssembly</strong>, so all computation runs at near-native speed directly in the browser — no server needed.</p>
+            <h4 class="learn-subheading">Workflow</h4>
+            <p class="learn-text"><strong>1. Create</strong> — Add layers (input, hidden, output) and connect them. Choose activation functions and configure neuron counts.</p>
+            <p class="learn-text"><strong>2. Dataset</strong> — Load or create a dataset. Use built-in synthetic datasets like XOR, Circle, or Spiral, or import your own CSV data.</p>
+            <p class="learn-text"><strong>3. Train</strong> — Set the learning rate, epochs, and loss function, then start training. Watch the loss curve update live and see weights and activations change on the canvas.</p>
+            <p class="learn-text"><strong>4. Predict</strong> — Feed new inputs to the trained network and see its output. Visualize decision boundaries for classification tasks.</p>
+            <h4 class="learn-subheading">Key features</h4>
+            <p class="learn-text">• Drag-and-drop canvas with zoom, pan, and minimap<br>• Real-time weight and activation visualization<br>• Decision boundary overlay<br>• Light and dark themes<br>• Export and import network topologies as JSON<br>• Undo / redo for all actions<br>• Keyboard shortcuts for fast workflow</p>
+            <h4 class="learn-subheading">Source code</h4>
+            <div class="learn-references">
+              <a class="learn-ref-link" href="https://github.com/CarlosDlw/vnns" target="_blank" rel="noopener">GitHub — CarlosDlw/vnns</a>
+            </div>
+          </div>
+          <div class="learn-topic" id="learn-topic-neural-network">
+            <h3 class="learn-heading">What is a Neural Network?</h3>
+            <p class="learn-text">A neural network is a computational model inspired by the way biological neurons in the brain process information. It consists of interconnected nodes (neurons) organized in layers that learn to recognize patterns in data.</p>
+            <p class="learn-text">At its core, a neural network takes numerical inputs, transforms them through a series of mathematical operations, and produces outputs — learning from examples rather than being explicitly programmed with rules.</p>
+            <h4 class="learn-subheading">Structure</h4>
+            <p class="learn-text">A typical neural network has three types of layers:</p>
+            <p class="learn-text"><strong>Input layer</strong> — receives the raw data. Each neuron represents one feature of the input (e.g., a pixel value, a measurement, a category).</p>
+            <p class="learn-text"><strong>Hidden layers</strong> — the intermediate layers where the actual learning happens. Each layer extracts increasingly abstract features from the data. Deeper networks can learn more complex patterns.</p>
+            <p class="learn-text"><strong>Output layer</strong> — produces the final result. For classification, each neuron might represent a class; for regression, a single neuron outputs a continuous value.</p>
+            <h4 class="learn-subheading">How it learns</h4>
+            <p class="learn-text">Neural networks learn through a process called <strong>training</strong>. During training, the network:</p>
+            <p class="learn-text">1. Makes a prediction based on input data (<strong>forward pass</strong>)<br>2. Measures how wrong the prediction was using a <strong>loss function</strong><br>3. Calculates how to adjust each weight to reduce the error (<strong>backpropagation</strong>)<br>4. Updates the weights by a small amount controlled by the <strong>learning rate</strong></p>
+            <p class="learn-text">This cycle repeats thousands of times across the dataset. Each full pass through the data is called an <strong>epoch</strong>. Over time, the network converges to weights that produce accurate predictions.</p>
+            <h4 class="learn-subheading">Why they work</h4>
+            <p class="learn-text">The key insight is the <strong>Universal Approximation Theorem</strong>: a neural network with at least one hidden layer and enough neurons can approximate any continuous function to arbitrary precision. This means neural networks are theoretically capable of learning virtually any input-output mapping, given enough data and capacity.</p>
+            <h4 class="learn-subheading">Common applications</h4>
+            <p class="learn-text">• <strong>Image recognition</strong> — identifying objects, faces, medical scans<br>• <strong>Natural language processing</strong> — translation, chatbots, text generation<br>• <strong>Speech recognition</strong> — voice assistants, transcription<br>• <strong>Autonomous systems</strong> — self-driving cars, robotics<br>• <strong>Game playing</strong> — AlphaGo, game AI agents<br>• <strong>Scientific research</strong> — protein folding, drug discovery, climate modeling</p>
+            <h4 class="learn-subheading">References</h4>
+            <div class="learn-references">
+              <a class="learn-ref-link" href="https://www.3blue1brown.com/topics/neural-networks" target="_blank" rel="noopener">3Blue1Brown — Neural Networks (video series)</a>
+              <a class="learn-ref-link" href="http://neuralnetworksanddeeplearning.com/" target="_blank" rel="noopener">Michael Nielsen — Neural Networks and Deep Learning (free book)</a>
+              <a class="learn-ref-link" href="https://cs231n.github.io/" target="_blank" rel="noopener">Stanford CS231n — Convolutional Neural Networks for Visual Recognition</a>
+              <a class="learn-ref-link" href="https://playground.tensorflow.org/" target="_blank" rel="noopener">TensorFlow Playground — Interactive NN visualization</a>
+            </div>
+          </div>
+          <div class="learn-topic" id="learn-topic-neurons">
+            <h3 class="learn-heading">Neurons</h3>
+            <p class="learn-text">A neuron (also called a node or unit) is the fundamental building block of a neural network. It is loosely inspired by biological neurons in the brain — cells that receive electrical signals, process them, and send signals to other neurons.</p>
+            <h4 class="learn-subheading">How a neuron works</h4>
+            <p class="learn-text">Each artificial neuron performs a simple three-step computation:</p>
+            <p class="learn-text"><strong>1. Weighted sum</strong> — The neuron receives one or more inputs (x₁, x₂, ..., xₙ) and multiplies each by a corresponding weight (w₁, w₂, ..., wₙ). It then sums all the products and adds a bias term (b):</p>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">z = w₁·x₁ + w₂·x₂ + ... + wₙ·xₙ + b</p>
+            <p class="learn-text"><strong>2. Activation function</strong> — The weighted sum z is passed through an activation function f(z) to produce the neuron's output. This introduces non-linearity, enabling the network to learn complex patterns beyond simple linear relationships.</p>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">output = f(z)</p>
+            <p class="learn-text"><strong>3. Output</strong> — The result is sent as input to neurons in the next layer, or becomes the final prediction if the neuron is in the output layer.</p>
+            <h4 class="learn-subheading">Weights</h4>
+            <p class="learn-text">Weights determine how much influence each input has on the neuron's output. A large positive weight means the input strongly activates the neuron; a large negative weight means it strongly inhibits it. During training, the network adjusts weights to minimize prediction errors.</p>
+            <h4 class="learn-subheading">Bias</h4>
+            <p class="learn-text">The bias is an additional parameter that allows the neuron to shift its activation function left or right. Without bias, the neuron would always pass through the origin. Think of it as the neuron's threshold — it controls how easy it is for the neuron to "fire" regardless of the inputs.</p>
+            <h4 class="learn-subheading">Biological analogy</h4>
+            <p class="learn-text">In the brain, a biological neuron collects electrical signals through its <strong>dendrites</strong>, processes them in the <strong>cell body</strong>, and if the combined signal exceeds a threshold, it fires an electrical impulse along its <strong>axon</strong> to other neurons. The artificial neuron mimics this: inputs are like dendrites, the weighted sum and activation are like the cell body's decision, and the output is like the axon signal.</p>
+            <h4 class="learn-subheading">The Perceptron</h4>
+            <p class="learn-text">The simplest neural network is a single neuron called a <strong>Perceptron</strong>, proposed by Frank Rosenblatt in 1958. It uses a step function as its activation: output is 1 if the weighted sum exceeds a threshold, 0 otherwise. A single perceptron can learn linearly separable problems (like AND and OR gates) but cannot solve non-linear problems (like XOR) — which is why we need multiple neurons and layers.</p>
+            <h4 class="learn-subheading">In VNNS</h4>
+            <p class="learn-text">In VNNS, neurons are represented as circles inside layer boxes on the canvas. You can see each neuron's activation value when the network is running, and the connection lines show the weights between neurons. The color intensity of connections reflects the weight magnitude — enabling you to visually understand what the network has learned.</p>
+            <h4 class="learn-subheading">References</h4>
+            <div class="learn-references">
+              <a class="learn-ref-link" href="https://www.3blue1brown.com/lessons/neural-networks" target="_blank" rel="noopener">3Blue1Brown — But what is a neural network? (Chapter 1)</a>
+              <a class="learn-ref-link" href="http://neuralnetworksanddeeplearning.com/chap1.html" target="_blank" rel="noopener">Michael Nielsen — Using neural nets to recognize handwritten digits</a>
+              <a class="learn-ref-link" href="https://cs231n.github.io/neural-networks-1/" target="_blank" rel="noopener">Stanford CS231n — Neural Networks Part 1: Setting up the Architecture</a>
+              <a class="learn-ref-link" href="https://en.wikipedia.org/wiki/Perceptron" target="_blank" rel="noopener">Wikipedia — Perceptron</a>
+            </div>
+          </div>
+          <div class="learn-topic" id="learn-topic-layers">
+            <h3 class="learn-heading">Layers</h3>
+            <p class="learn-text">Neurons in a neural network are organized into <strong>layers</strong> — groups of neurons that process data at the same stage. Data flows from one layer to the next, with each layer transforming the representation before passing it forward.</p>
+            <h4 class="learn-subheading">Input layer</h4>
+            <p class="learn-text">The first layer of the network. It doesn't perform any computation — it simply receives the raw input data and passes it to the next layer. The number of neurons in the input layer equals the number of features in your data.</p>
+            <p class="learn-text">For example, if your dataset has 2 features (like x and y coordinates), the input layer has 2 neurons. If you're processing a 28×28 pixel image, it has 784 neurons (one per pixel).</p>
+            <h4 class="learn-subheading">Hidden layers</h4>
+            <p class="learn-text">The layers between input and output are called <strong>hidden layers</strong> because their values are not directly observed in the training data. This is where the network learns internal representations of the data.</p>
+            <p class="learn-text">Each hidden layer extracts increasingly abstract features. In an image classifier, the first hidden layer might detect edges, the second might detect shapes, and deeper layers might recognize objects.</p>
+            <p class="learn-text"><strong>Width vs depth:</strong> The number of neurons in a layer is its <strong>width</strong>. The number of layers is the network's <strong>depth</strong>. A "deep" neural network has many hidden layers — this is where the term <strong>deep learning</strong> comes from.</p>
+            <p class="learn-text"><strong>How many neurons?</strong> There's no universal rule. Too few neurons and the network can't capture the pattern (underfitting). Too many and it may memorize the training data (overfitting). Common practice is to start with a reasonable number and experiment.</p>
+            <h4 class="learn-subheading">Output layer</h4>
+            <p class="learn-text">The last layer produces the network's final prediction. Its structure depends on the task:</p>
+            <p class="learn-text"><strong>Binary classification</strong> — 1 neuron with Sigmoid activation (output between 0 and 1, interpreted as probability).</p>
+            <p class="learn-text"><strong>Multi-class classification</strong> — N neurons (one per class), typically with Softmax activation so outputs sum to 1.</p>
+            <p class="learn-text"><strong>Regression</strong> — 1 or more neurons with no activation (or linear), outputting continuous values.</p>
+            <h4 class="learn-subheading">Fully connected layers</h4>
+            <p class="learn-text">In a <strong>fully connected</strong> (or dense) layer, every neuron is connected to every neuron in the previous layer. This is the most common layer type in simple neural networks and the type used in VNNS. Each connection has its own weight, so a layer with M inputs and N neurons has M × N weights plus N biases.</p>
+            <h4 class="learn-subheading">How data flows</h4>
+            <p class="learn-text">Data moves in one direction — from input to output — in what's called a <strong>feedforward</strong> architecture. At each layer, every neuron computes its weighted sum, adds its bias, applies the activation function, and sends the result to the next layer. This entire process is the <strong>forward pass</strong>.</p>
+            <h4 class="learn-subheading">In VNNS</h4>
+            <p class="learn-text">Layers appear as rectangular boxes on the canvas, containing their neurons as circles. You can add layers from the Create panel (or press <strong>L</strong>), choose the layer type (input, hidden, output), set the number of neurons, and select an activation function. Use <strong>Auto Connect</strong> (Ctrl+Shift+A) to wire all layers together automatically.</p>
+            <h4 class="learn-subheading">References</h4>
+            <div class="learn-references">
+              <a class="learn-ref-link" href="https://www.3blue1brown.com/lessons/neural-networks" target="_blank" rel="noopener">3Blue1Brown — But what is a neural network? (Chapter 1)</a>
+              <a class="learn-ref-link" href="http://neuralnetworksanddeeplearning.com/chap1.html#the_architecture_of_neural_networks" target="_blank" rel="noopener">Michael Nielsen — The architecture of neural networks</a>
+              <a class="learn-ref-link" href="https://cs231n.github.io/neural-networks-1/#arch" target="_blank" rel="noopener">Stanford CS231n — Setting up the Architecture</a>
+              <a class="learn-ref-link" href="https://en.wikipedia.org/wiki/Feedforward_neural_network" target="_blank" rel="noopener">Wikipedia — Feedforward neural network</a>
+              <a class="learn-ref-link" href="https://en.wikipedia.org/wiki/Deep_learning" target="_blank" rel="noopener">Wikipedia — Deep learning</a>
+            </div>
+          </div>
+          <div class="learn-topic" id="learn-topic-weights-biases">
+            <h3 class="learn-heading">Weights & Biases</h3>
+            <p class="learn-text">Weights and biases are the <strong>learnable parameters</strong> of a neural network — the numbers the network adjusts during training to make accurate predictions. Everything the network "knows" is encoded in these values.</p>
+            <h4 class="learn-subheading">Weights</h4>
+            <p class="learn-text">A weight is a number associated with each connection between two neurons. It determines <strong>how much influence</strong> one neuron's output has on the next neuron's input.</p>
+            <p class="learn-text"><strong>Positive weight</strong> — the input excites the next neuron (pushes its activation higher).<br><strong>Negative weight</strong> — the input inhibits the next neuron (pushes its activation lower).<br><strong>Weight near zero</strong> — the connection has little effect; the input is essentially ignored.</p>
+            <p class="learn-text">The magnitude of a weight indicates the strength of the connection. A weight of 2.5 has more influence than a weight of 0.3.</p>
+            <h4 class="learn-subheading">Biases</h4>
+            <p class="learn-text">Each neuron has a single bias value added to its weighted sum before the activation function is applied. The bias shifts the activation function, allowing the neuron to activate even when all inputs are zero.</p>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">z = w₁·x₁ + w₂·x₂ + ... + wₙ·xₙ + b</p>
+            <p class="learn-text">Think of the bias as setting a <strong>baseline</strong>. A positive bias makes the neuron more likely to activate; a negative bias makes it harder to activate. Without biases, the decision boundaries learned by the network would always have to pass through the origin.</p>
+            <h4 class="learn-subheading">Initialization</h4>
+            <p class="learn-text">Before training, weights must be initialized. The choice of initial values matters significantly:</p>
+            <p class="learn-text"><strong>All zeros</strong> — Never do this. All neurons in a layer would compute the same output and receive the same gradient, so they'd never differentiate (the "symmetry problem").</p>
+            <p class="learn-text"><strong>Random small values</strong> — The most common approach. Weights are drawn from a small random distribution (e.g., Gaussian with mean 0). This breaks symmetry and allows each neuron to learn different features.</p>
+            <p class="learn-text"><strong>Xavier/Glorot initialization</strong> — Scales random values by the number of inputs and outputs of the layer. Helps maintain stable signal variance through deep networks, especially with Sigmoid and Tanh activations.</p>
+            <p class="learn-text"><strong>He initialization</strong> — Similar to Xavier but scaled for ReLU activations, which zero out half the signal. Uses a larger variance to compensate.</p>
+            <h4 class="learn-subheading">How they're updated</h4>
+            <p class="learn-text">During training, the network uses <strong>backpropagation</strong> to calculate how much each weight and bias contributed to the prediction error. Then, each parameter is nudged in the direction that reduces the error, scaled by the <strong>learning rate</strong>:</p>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">w_new = w_old − learning_rate × ∂loss/∂w</p>
+            <p class="learn-text">This process repeats for every training example (or batch) across many epochs until the weights converge to values that produce good predictions.</p>
+            <h4 class="learn-subheading">In VNNS</h4>
+            <p class="learn-text">Toggle <strong>Show Weights</strong> (press <strong>W</strong>) to see weight values on the connection lines. The color intensity of connections reflects the weight magnitude — bright colors mean strong connections, faint colors mean weak ones. You can also inspect individual weights and biases by selecting a neuron in the properties panel.</p>
+            <h4 class="learn-subheading">References</h4>
+            <div class="learn-references">
+              <a class="learn-ref-link" href="https://www.3blue1brown.com/lessons/gradient-descent" target="_blank" rel="noopener">3Blue1Brown — Gradient descent, how neural networks learn (Chapter 2)</a>
+              <a class="learn-ref-link" href="http://neuralnetworksanddeeplearning.com/chap1.html#learning_with_gradient_descent" target="_blank" rel="noopener">Michael Nielsen — Learning with gradient descent</a>
+              <a class="learn-ref-link" href="https://cs231n.github.io/neural-networks-2/#init" target="_blank" rel="noopener">Stanford CS231n — Weight initialization</a>
+              <a class="learn-ref-link" href="https://en.wikipedia.org/wiki/Xavier_initialization" target="_blank" rel="noopener">Wikipedia — Xavier initialization</a>
+            </div>
+          </div>
+          <div class="learn-topic" id="learn-topic-activation-functions">
+            <h3 class="learn-heading">Activation Functions</h3>
+            <p class="learn-text">An activation function is a mathematical function applied to a neuron's weighted sum to determine its output. Without activation functions, a neural network would just be a series of linear transformations — no matter how many layers, it could only learn linear relationships.</p>
+            <p class="learn-text">Activation functions introduce <strong>non-linearity</strong>, which is what allows neural networks to approximate complex, non-linear functions and solve problems like image recognition, language understanding, and game playing.</p>
+            <h4 class="learn-subheading">Sigmoid</h4>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">σ(z) = 1 / (1 + e⁻ᶻ)</p>
+            <p class="learn-text">Squashes any input to a value between <strong>0 and 1</strong>. Historically very popular, it has a smooth S-shaped curve. Useful for output layers in binary classification (interpreting the output as a probability).</p>
+            <p class="learn-text"><strong>Downsides:</strong> Suffers from the <strong>vanishing gradient problem</strong> — for very large or very small inputs, the gradient is nearly zero, which slows down learning in deep networks. Also, outputs are not zero-centered.</p>
+            <h4 class="learn-subheading">Tanh</h4>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">tanh(z) = (eᶻ − e⁻ᶻ) / (eᶻ + e⁻ᶻ)</p>
+            <p class="learn-text">Similar to Sigmoid but outputs between <strong>−1 and 1</strong>, making it <strong>zero-centered</strong>. This generally leads to faster convergence than Sigmoid because gradients are not systematically biased in one direction.</p>
+            <p class="learn-text"><strong>Downsides:</strong> Still suffers from vanishing gradients at the extremes, though less severely than Sigmoid.</p>
+            <h4 class="learn-subheading">ReLU (Rectified Linear Unit)</h4>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">ReLU(z) = max(0, z)</p>
+            <p class="learn-text">The most widely used activation function in modern networks. It outputs the input directly if positive, or zero otherwise. Extremely simple and computationally efficient.</p>
+            <p class="learn-text"><strong>Advantages:</strong> Doesn't suffer from vanishing gradients for positive values. Leads to sparse activations (many neurons output exactly 0), which can be computationally efficient.</p>
+            <p class="learn-text"><strong>Downsides:</strong> The <strong>dying ReLU problem</strong> — if a neuron's weighted sum is always negative, its gradient is permanently zero, and the neuron stops learning entirely.</p>
+            <h4 class="learn-subheading">Softmax</h4>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">softmax(zᵢ) = eᶻⁱ / Σⱼ eᶻʲ</p>
+            <p class="learn-text">Used in the <strong>output layer</strong> for multi-class classification. It converts a vector of raw scores into a <strong>probability distribution</strong> — all outputs are positive and sum to 1. The class with the highest probability is the prediction.</p>
+            <h4 class="learn-subheading">How to choose</h4>
+            <p class="learn-text"><strong>Hidden layers</strong> — Start with <strong>ReLU</strong>. It works well in most cases and trains fast.<br><strong>Binary classification output</strong> — Use <strong>Sigmoid</strong> (output is a probability between 0 and 1).<br><strong>Multi-class classification output</strong> — Use <strong>Softmax</strong> (output is a probability distribution).<br><strong>Regression output</strong> — Use <strong>no activation</strong> (linear) so the output can be any value.</p>
+            <h4 class="learn-subheading">In VNNS</h4>
+            <p class="learn-text">When creating or editing a layer, you can select the activation function from a dropdown. VNNS supports ReLU, Sigmoid, and Tanh. You can observe how different activations affect the neuron outputs during training — neurons with ReLU will show 0 for negative inputs, while Sigmoid neurons will show values smoothly compressed between 0 and 1.</p>
+            <h4 class="learn-subheading">References</h4>
+            <div class="learn-references">
+              <a class="learn-ref-link" href="https://www.3blue1brown.com/lessons/neural-networks" target="_blank" rel="noopener">3Blue1Brown — But what is a neural network? (Chapter 1)</a>
+              <a class="learn-ref-link" href="https://cs231n.github.io/neural-networks-1/#actfun" target="_blank" rel="noopener">Stanford CS231n — Commonly used activation functions</a>
+              <a class="learn-ref-link" href="https://en.wikipedia.org/wiki/Activation_function" target="_blank" rel="noopener">Wikipedia — Activation function</a>
+              <a class="learn-ref-link" href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)" target="_blank" rel="noopener">Wikipedia — Rectifier (ReLU)</a>
+            </div>
+          </div>
+          <div class="learn-topic" id="learn-topic-loss-functions">
+            <h3 class="learn-heading">Loss Functions</h3>
+            <p class="learn-text">A loss function (also called cost function or objective function) measures <strong>how wrong</strong> the network's predictions are compared to the expected output. The goal of training is to minimize this value.</p>
+            <p class="learn-text">The loss function gives the network a single number that summarizes its performance. A loss of 0 means perfect predictions; higher values mean worse performance. The network uses this signal to figure out which direction to adjust its weights.</p>
+            <h4 class="learn-subheading">Mean Squared Error (MSE)</h4>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">MSE = (1/n) × Σ(yᵢ − ŷᵢ)²</p>
+            <p class="learn-text">The average of the squared differences between predicted values (ŷ) and actual values (y). Used primarily for <strong>regression</strong> tasks where the output is a continuous number.</p>
+            <p class="learn-text"><strong>Why squared?</strong> Squaring penalizes large errors more than small ones, and makes the function differentiable everywhere (needed for gradient-based optimization). A prediction off by 2 contributes 4 to the loss, while one off by 10 contributes 100.</p>
+            <h4 class="learn-subheading">Binary Cross-Entropy</h4>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">BCE = −(1/n) × Σ[yᵢ·log(ŷᵢ) + (1−yᵢ)·log(1−ŷᵢ)]</p>
+            <p class="learn-text">Used for <strong>binary classification</strong> (two classes: 0 or 1). It measures the difference between two probability distributions. When the prediction is confident and correct, the loss is low; when confident and wrong, the loss is very high — which creates strong gradients for learning.</p>
+            <h4 class="learn-subheading">Categorical Cross-Entropy</h4>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">CCE = −Σ yᵢ·log(ŷᵢ)</p>
+            <p class="learn-text">The multi-class extension of binary cross-entropy. Used when there are <strong>more than two classes</strong>, typically paired with a Softmax output layer. The target is a one-hot encoded vector (e.g., [0, 1, 0] for class 2).</p>
+            <h4 class="learn-subheading">How to choose</h4>
+            <p class="learn-text"><strong>Regression</strong> (predicting numbers) → <strong>MSE</strong><br><strong>Binary classification</strong> (yes/no, true/false) → <strong>Binary Cross-Entropy</strong> + Sigmoid output<br><strong>Multi-class classification</strong> (cat/dog/bird) → <strong>Categorical Cross-Entropy</strong> + Softmax output</p>
+            <h4 class="learn-subheading">The loss curve</h4>
+            <p class="learn-text">During training, the loss value is recorded at each epoch and plotted as a <strong>loss curve</strong>. A healthy training session shows the loss steadily decreasing over time. If the loss stops decreasing, the network may have converged. If it increases, something might be wrong (learning rate too high, or bugs in the data).</p>
+            <h4 class="learn-subheading">In VNNS</h4>
+            <p class="learn-text">You select the loss function in the Train panel before starting training. VNNS supports MSE and Cross-Entropy. The loss curve is displayed in real time as a chart during training, so you can monitor convergence and decide when to stop.</p>
+            <h4 class="learn-subheading">References</h4>
+            <div class="learn-references">
+              <a class="learn-ref-link" href="https://www.3blue1brown.com/lessons/gradient-descent" target="_blank" rel="noopener">3Blue1Brown — Gradient descent, how neural networks learn (Chapter 2)</a>
+              <a class="learn-ref-link" href="http://neuralnetworksanddeeplearning.com/chap1.html#the_cost_function" target="_blank" rel="noopener">Michael Nielsen — The cost function</a>
+              <a class="learn-ref-link" href="https://en.wikipedia.org/wiki/Loss_function" target="_blank" rel="noopener">Wikipedia — Loss function</a>
+              <a class="learn-ref-link" href="https://en.wikipedia.org/wiki/Cross-entropy" target="_blank" rel="noopener">Wikipedia — Cross-entropy</a>
+            </div>
+          </div>
+          <div class="learn-topic" id="learn-topic-backpropagation">
+            <h3 class="learn-heading">Backpropagation</h3>
+            <p class="learn-text">Backpropagation (short for "backward propagation of errors") is the algorithm that makes neural network training possible. It efficiently calculates <strong>how much each weight and bias contributed to the prediction error</strong>, then uses that information to update them.</p>
+            <h4 class="learn-subheading">The core idea</h4>
+            <p class="learn-text">After a forward pass produces a prediction and the loss function measures the error, the network needs to know: "which weights should I increase, and which should I decrease, to reduce the error?" Backpropagation answers this by computing the <strong>gradient</strong> of the loss with respect to every weight in the network.</p>
+            <h4 class="learn-subheading">The chain rule</h4>
+            <p class="learn-text">Backpropagation relies on the <strong>chain rule of calculus</strong>. Since the loss depends on the output, which depends on the last layer's weights, which depend on the previous layer's outputs, and so on — the gradient can be computed layer by layer, working backward from the output to the input.</p>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">∂loss/∂w = ∂loss/∂output × ∂output/∂z × ∂z/∂w</p>
+            <p class="learn-text">Each factor in this chain is simple to compute. The power of backpropagation is that it reuses intermediate results — gradients computed for one layer are passed backward to compute gradients for the previous layer.</p>
+            <h4 class="learn-subheading">Step by step</h4>
+            <p class="learn-text"><strong>1. Forward pass</strong> — Input data flows through the network, layer by layer, producing a prediction. All intermediate values (weighted sums and activations) are stored.</p>
+            <p class="learn-text"><strong>2. Compute loss</strong> — The loss function compares the prediction to the expected output, producing a single error value.</p>
+            <p class="learn-text"><strong>3. Backward pass</strong> — Starting from the loss, compute the gradient at the output layer. Then propagate it backward through each layer, computing how much each weight contributed to the error.</p>
+            <p class="learn-text"><strong>4. Update weights</strong> — Adjust every weight and bias by subtracting a fraction (the learning rate) of its gradient. This is the <strong>gradient descent</strong> step.</p>
+            <h4 class="learn-subheading">Gradient descent</h4>
+            <p class="learn-text">Backpropagation computes the gradients; <strong>gradient descent</strong> uses them to update the weights. Think of the loss as a landscape with hills and valleys. The gradient points "uphill" — so we move in the opposite direction (downhill) to find the minimum loss.</p>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">w_new = w_old − learning_rate × gradient</p>
+            <h4 class="learn-subheading">Why it's efficient</h4>
+            <p class="learn-text">A naive approach would compute the gradient for each weight independently — extremely slow for networks with millions of parameters. Backpropagation computes all gradients in a single backward pass by reusing intermediate calculations, making it proportional in cost to a single forward pass.</p>
+            <h4 class="learn-subheading">Challenges</h4>
+            <p class="learn-text"><strong>Vanishing gradients</strong> — In deep networks with Sigmoid/Tanh activations, gradients can become extremely small as they propagate backward, causing early layers to learn very slowly. ReLU and modern initialization techniques help mitigate this.</p>
+            <p class="learn-text"><strong>Exploding gradients</strong> — The opposite problem: gradients become extremely large, causing unstable weight updates. Gradient clipping (capping gradient values) is a common fix.</p>
+            <h4 class="learn-subheading">In VNNS</h4>
+            <p class="learn-text">During training, VNNS runs backpropagation automatically for each training iteration. You can observe the effects in real time: watch the weights change on the canvas connections, see activation values shift, and track the loss curve decreasing as the network learns.</p>
+            <h4 class="learn-subheading">References</h4>
+            <div class="learn-references">
+              <a class="learn-ref-link" href="https://www.3blue1brown.com/lessons/backpropagation" target="_blank" rel="noopener">3Blue1Brown — Backpropagation, what is it really doing? (Chapter 3)</a>
+              <a class="learn-ref-link" href="https://www.3blue1brown.com/lessons/backpropagation-calculus" target="_blank" rel="noopener">3Blue1Brown — Backpropagation calculus (Chapter 4)</a>
+              <a class="learn-ref-link" href="http://neuralnetworksanddeeplearning.com/chap2.html" target="_blank" rel="noopener">Michael Nielsen — How the backpropagation algorithm works</a>
+              <a class="learn-ref-link" href="https://cs231n.github.io/optimization-2/" target="_blank" rel="noopener">Stanford CS231n — Backpropagation, Intuitions</a>
+              <a class="learn-ref-link" href="https://en.wikipedia.org/wiki/Backpropagation" target="_blank" rel="noopener">Wikipedia — Backpropagation</a>
+            </div>
+          </div>
+          <div class="learn-topic" id="learn-topic-learning-rate">
+            <h3 class="learn-heading">Learning Rate</h3>
+            <p class="learn-text">The learning rate is a <strong>hyperparameter</strong> that controls how much the weights are adjusted during each training step. It determines the size of the steps the network takes when descending the loss landscape toward a minimum.</p>
+            <p class="learn-text" style="text-align:center;font-family:monospace;color:var(--text-strong)">w_new = w_old − learning_rate × gradient</p>
+            <h4 class="learn-subheading">Too high</h4>
+            <p class="learn-text">A learning rate that is too large causes the network to take big steps, potentially <strong>overshooting</strong> the optimal values. The loss might oscillate wildly or even increase over time instead of decreasing. In extreme cases, the weights can diverge to infinity (NaN values).</p>
+            <h4 class="learn-subheading">Too low</h4>
+            <p class="learn-text">A learning rate that is too small makes training extremely slow. The network takes tiny steps and may need an impractical number of epochs to converge. It can also get <strong>stuck in local minima</strong> — suboptimal solutions that appear to be the best from the network's perspective but aren't globally optimal.</p>
+            <h4 class="learn-subheading">Just right</h4>
+            <p class="learn-text">The ideal learning rate allows the network to converge quickly and reliably. In practice, typical values range from <strong>0.001 to 0.1</strong>. A common starting point is <strong>0.01</strong>.</p>
+            <h4 class="learn-subheading">Practical guidelines</h4>
+            <p class="learn-text"><strong>Start with 0.01</strong> and observe the loss curve. If loss decreases smoothly, the rate is reasonable.</p>
+            <p class="learn-text"><strong>If loss oscillates or explodes</strong>, reduce the learning rate (try 0.001 or 0.0001).</p>
+            <p class="learn-text"><strong>If loss decreases very slowly</strong>, increase the learning rate (try 0.05 or 0.1).</p>
+            <p class="learn-text"><strong>Learning rate schedules</strong> — Advanced technique where the learning rate starts high and decreases over time. This allows fast initial progress followed by fine-grained convergence near the end.</p>
+            <h4 class="learn-subheading">The loss landscape analogy</h4>
+            <p class="learn-text">Imagine you're blindfolded on a hilly terrain and trying to find the lowest valley. The gradient tells you which direction is downhill, and the learning rate determines how large a step you take. Too large and you leap over valleys; too small and you take hours to reach the bottom.</p>
+            <h4 class="learn-subheading">In VNNS</h4>
+            <p class="learn-text">Set the learning rate in the Train panel before starting training. Watch the loss curve to evaluate your choice — if it's not converging well, stop, adjust the rate, and retrain. VNNS lets you experiment quickly since training runs in real time.</p>
+            <h4 class="learn-subheading">References</h4>
+            <div class="learn-references">
+              <a class="learn-ref-link" href="https://www.3blue1brown.com/lessons/gradient-descent" target="_blank" rel="noopener">3Blue1Brown — Gradient descent, how neural networks learn (Chapter 2)</a>
+              <a class="learn-ref-link" href="http://neuralnetworksanddeeplearning.com/chap1.html#learning_with_gradient_descent" target="_blank" rel="noopener">Michael Nielsen — Learning with gradient descent</a>
+              <a class="learn-ref-link" href="https://cs231n.github.io/neural-networks-3/#lr" target="_blank" rel="noopener">Stanford CS231n — Learning rate</a>
+              <a class="learn-ref-link" href="https://en.wikipedia.org/wiki/Learning_rate" target="_blank" rel="noopener">Wikipedia — Learning rate</a>
+            </div>
+          </div>
+          <div class="learn-topic" id="learn-topic-overfitting">
+            <h3 class="learn-heading">Overfitting</h3>
+            <p class="learn-text">Overfitting occurs when a neural network <strong>memorizes the training data</strong> instead of learning the underlying patterns. The network performs exceptionally well on training data but fails to <strong>generalize</strong> to new, unseen data.</p>
+            <h4 class="learn-subheading">Why it happens</h4>
+            <p class="learn-text">A network with too many parameters relative to the amount of training data has enough capacity to memorize every training example, including noise and outliers. Instead of learning the general rule "circles are round," it learns "this specific circle has these exact pixel values."</p>
+            <h4 class="learn-subheading">How to detect it</h4>
+            <p class="learn-text">The telltale sign is a <strong>gap between training loss and validation loss</strong>. If the training loss continues to decrease while the validation loss starts increasing, the network is overfitting — it's getting better at the training data but worse at new data.</p>
+            <p class="learn-text">In the loss curve, overfitting looks like a point where the training loss and validation loss <strong>diverge</strong>. Before that point, the network is learning useful patterns; after it, the network is memorizing.</p>
+            <h4 class="learn-subheading">Underfitting vs overfitting</h4>
+            <p class="learn-text"><strong>Underfitting</strong> — The model is too simple to capture the pattern. Both training and validation loss are high. The solution is a more complex model or more training.</p>
+            <p class="learn-text"><strong>Overfitting</strong> — The model is too complex for the data. Training loss is low but validation loss is high. The solution is regularization, more data, or a simpler model.</p>
+            <p class="learn-text">The goal is the <strong>sweet spot</strong> between the two — a model complex enough to capture the pattern but not so complex that it memorizes noise.</p>
+            <h4 class="learn-subheading">How to prevent it</h4>
+            <p class="learn-text"><strong>More data</strong> — The most effective solution. More training examples make it harder for the network to memorize instead of generalize.</p>
+            <p class="learn-text"><strong>Simpler model</strong> — Fewer layers or fewer neurons per layer reduces the network's capacity to memorize.</p>
+            <p class="learn-text"><strong>Early stopping</strong> — Stop training when the validation loss stops improving, before overfitting begins.</p>
+            <p class="learn-text"><strong>Regularization</strong> — Techniques like L1/L2 regularization add a penalty for large weights, encouraging simpler solutions. Dropout randomly disables neurons during training, forcing the network to learn redundant representations.</p>
+            <p class="learn-text"><strong>Data augmentation</strong> — Artificially increase the dataset size by creating modified versions of existing data (rotations, flips, noise).</p>
+            <h4 class="learn-subheading">In VNNS</h4>
+            <p class="learn-text">Watch the loss curve during training. If you notice the loss plateauing or starting to fluctuate after a period of decrease, the network may be overfitting. Try reducing the number of neurons or layers, using a simpler architecture, adding more data points, or training for fewer epochs.</p>
+            <h4 class="learn-subheading">References</h4>
+            <div class="learn-references">
+              <a class="learn-ref-link" href="http://neuralnetworksanddeeplearning.com/chap3.html#overfitting_and_regularization" target="_blank" rel="noopener">Michael Nielsen — Overfitting and regularization</a>
+              <a class="learn-ref-link" href="https://cs231n.github.io/neural-networks-3/#regularization" target="_blank" rel="noopener">Stanford CS231n — Regularization</a>
+              <a class="learn-ref-link" href="https://en.wikipedia.org/wiki/Overfitting" target="_blank" rel="noopener">Wikipedia — Overfitting</a>
+              <a class="learn-ref-link" href="https://en.wikipedia.org/wiki/Regularization_(mathematics)" target="_blank" rel="noopener">Wikipedia — Regularization</a>
+            </div>
+          </div>
+
+          <!-- VNNS Guides -->
+
+          <div class="learn-topic" id="learn-topic-guide-canvas">
+            <h3 class="learn-heading">Canvas</h3>
+            <p class="learn-text">The canvas is the central workspace where you build and visualize your neural network. Layers appear as labeled boxes, neurons as circles inside them, and connections as lines between neurons.</p>
+            <img class="learn-img" src="assets/images/img_canvas_with_simple_classifier_3_layers.png" alt="Canvas with a 3-layer network">
+
+            <h4 class="learn-subheading">Navigation</h4>
+            <p class="learn-text"><strong>Pan</strong> — Middle-click and drag, or hold <kbd class="learn-kbd">Alt</kbd> and click-drag to move around the canvas.</p>
+            <p class="learn-text"><strong>Zoom</strong> — Scroll the mouse wheel to zoom in and out (range 10%–500%). You can also use <kbd class="learn-kbd">Ctrl++</kbd> and <kbd class="learn-kbd">Ctrl+-</kbd>, or the zoom buttons in the bottom toolbar.</p>
+            <p class="learn-text"><strong>Fit to Content</strong> — Press <kbd class="learn-kbd">F</kbd> to automatically zoom and center the view on your network.</p>
+
+            <h4 class="learn-subheading">Selection</h4>
+            <p class="learn-text">Click a layer or neuron to select it. Hold <kbd class="learn-kbd">Shift</kbd> and click to select multiple items. Press <kbd class="learn-kbd">Delete</kbd>, <kbd class="learn-kbd">Backspace</kbd>, or <kbd class="learn-kbd">X</kbd> to remove the selection. Press <kbd class="learn-kbd">Escape</kbd> to deselect everything.</p>
+
+            <h4 class="learn-subheading">Drag & drop</h4>
+            <p class="learn-text">Drag layers to reposition them — they snap to the grid by default (20 px spacing). You can also drag individual neurons between layers to reorganize your network.</p>
+
+            <h4 class="learn-subheading">Bottom toolbar</h4>
+            <p class="learn-text">The toolbar at the bottom of the canvas provides quick access to view controls.</p>
+            <img class="learn-img" src="assets/images/img_canvas_bottom_tool_bar.png" alt="Canvas bottom toolbar">
+            <p class="learn-text">From left to right: <strong>Toggle Grid</strong> (<kbd class="learn-kbd">G</kbd>), <strong>Snap to Grid</strong>, <strong>Toggle Minimap</strong> (<kbd class="learn-kbd">M</kbd>), <strong>Show Weights</strong> (<kbd class="learn-kbd">W</kbd>), <strong>Show Activations</strong>, <strong>Zoom Out</strong>, <strong>Zoom percentage</strong>, <strong>Zoom In</strong>, <strong>Fit to Content</strong>.</p>
+
+            <h4 class="learn-subheading">Minimap</h4>
+            <p class="learn-text">A minimap appears in the bottom-right corner showing an overview of the entire network. Click or drag inside the minimap to quickly pan the canvas. Toggle it with <kbd class="learn-kbd">M</kbd>.</p>
+            <img class="learn-img" src="assets/images/img_canvas_minimap.png" alt="Canvas minimap">
+
+            <h4 class="learn-subheading">Show Weights</h4>
+            <p class="learn-text">Press <kbd class="learn-kbd">W</kbd> to toggle weight visualization. Connections are colored by sign — <strong>blue</strong> for positive weights and <strong>red</strong> for negative — with line thickness and color intensity proportional to the weight magnitude.</p>
+
+            <h4 class="learn-subheading">Show Activations</h4>
+            <p class="learn-text">When enabled, neuron colors change to reflect their activation values during training. A glow effect highlights highly activated neurons. Activations update every 50 epochs.</p>
+
+            <h4 class="learn-subheading">Semantic zoom</h4>
+            <p class="learn-text">The canvas adapts its level of detail as you zoom. At very low zoom (<strong>&lt; 25%</strong>), layers are shown as simple boxes with arrows. Between <strong>25%–50%</strong>, layers collapse into compact dot groups. Above <strong>50%</strong>, all neurons, labels, and connection details are fully rendered.</p>
+
+            <h4 class="learn-subheading">Hover information</h4>
+            <p class="learn-text">Hover over any element to see a tooltip with its details:</p>
+            <p class="learn-text"><strong>Layer</strong> — name, neuron count, activation function, bias status, weight initialization.</p>
+            <p class="learn-text"><strong>Neuron</strong> — label, parent layer, activation, bias value, incoming/outgoing connection counts, current activation value.</p>
+            <p class="learn-text"><strong>Connection</strong> — weight value, sign, source and target neurons.</p>
+            <div class="learn-img-row">
+              <img class="learn-img" src="assets/images/img_canvas_layer_hover_info.png" alt="Layer hover info">
+              <img class="learn-img" src="assets/images/img_canvas_neuron_hover_info.png" alt="Neuron hover info">
+            </div>
+
+            <h4 class="learn-subheading">Context toolbar</h4>
+            <p class="learn-text">Select a layer and a floating toolbar appears above it with quick actions: <strong>Rename</strong>, <strong>Duplicate</strong>, <strong>Add Neuron</strong>, <strong>Set Neuron Count</strong>, <strong>Change Activation</strong>, and <strong>Change Color</strong>.</p>
+            <img class="learn-img" src="assets/images/img_canvas_layer_popup_tool_menu.png" alt="Layer context toolbar">
+
+            <h4 class="learn-subheading">Right-click menus</h4>
+            <p class="learn-text">Right-click different elements to access context-specific actions:</p>
+            <p class="learn-text"><strong>Canvas</strong> — Add Layer Here, Add Neuron to Selected, Auto Connect, Auto Layout, Clear Connections, Clear Canvas.</p>
+            <p class="learn-text"><strong>Layer</strong> — Add Neuron, Rename, Duplicate, Remove.</p>
+            <p class="learn-text"><strong>Neuron</strong> — Start Connection, Remove.</p>
+            <div class="learn-img-row">
+              <img class="learn-img" src="assets/images/img_canvas_context_menu.png" alt="Canvas context menu">
+              <img class="learn-img" src="assets/images/img_canvas_layer_context_menu.png" alt="Layer context menu">
+              <img class="learn-img" src="assets/images/img_canvas_neuron_context_menu.png" alt="Neuron context menu">
+            </div>
+          </div>
+
+          <div class="learn-topic" id="learn-topic-guide-creating">
+            <h3 class="learn-heading">Creating Networks</h3>
+            <p class="learn-text">The Create panel (sidebar icon 1, or press <kbd class="learn-kbd">1</kbd>) contains tools for building your network topology.</p>
+            <img class="learn-img" src="assets/images/img_create_panel.png" alt="Create panel">
+
+            <h4 class="learn-subheading">Adding layers and neurons</h4>
+            <p class="learn-text"><strong>Add Layer</strong> (<kbd class="learn-kbd">L</kbd>) — Creates a new layer on the canvas. Each layer is placed with default settings that you can modify via the Properties panel or the context toolbar.</p>
+            <p class="learn-text"><strong>Add Neuron</strong> (<kbd class="learn-kbd">A</kbd>) — Adds a neuron to the currently selected layer. If no layer is selected, a new layer is created first.</p>
+
+            <h4 class="learn-subheading">Connecting layers</h4>
+            <p class="learn-text"><strong>Manual connection</strong> — Right-click a neuron and choose <em>Start Connection</em>, then click the target neuron to create a single connection.</p>
+            <p class="learn-text"><strong>Auto Connect</strong> (<kbd class="learn-kbd">Ctrl+Shift+A</kbd>) — Opens a modal that lets you wire up layers automatically using one of several patterns:</p>
+            <p class="learn-text">• <strong>Sequential</strong> — Connects each layer to the next in order.<br>• <strong>Fully Connected</strong> — Every neuron in each layer connects to every neuron in the next.<br>• <strong>One-to-One</strong> — Pairs neurons 1:1 between layers.<br>• <strong>Skip Connection</strong> — Connects layers separated by a configurable distance (2–10).<br>• <strong>Random Sparse</strong> — Randomly connects a percentage of neuron pairs (1–100%).<br>• <strong>Custom Range</strong> — Connects specific layer ranges you define.</p>
+            <p class="learn-text">All patterns include a <strong>Bi-directional</strong> checkbox to create connections in both directions.</p>
+
+            <h4 class="learn-subheading">Layout & cleanup</h4>
+            <p class="learn-text"><strong>Auto Layout</strong> (<kbd class="learn-kbd">Ctrl+Shift+L</kbd>) — Automatically arranges all layers in an evenly spaced horizontal layout.</p>
+            <p class="learn-text"><strong>Clear Connections</strong> — Removes all connections but keeps layers and neurons.</p>
+            <p class="learn-text"><strong>Clear Canvas</strong> — Removes everything from the canvas (layers, neurons, and connections).</p>
+
+            <h4 class="learn-subheading">Undo & redo</h4>
+            <p class="learn-text">All actions on the canvas are tracked in a history stack. Use <kbd class="learn-kbd">Ctrl+Z</kbd> to undo and <kbd class="learn-kbd">Ctrl+Shift+Z</kbd> (or <kbd class="learn-kbd">Ctrl+Y</kbd>) to redo.</p>
+          </div>
+
+          <div class="learn-topic" id="learn-topic-guide-datasets">
+            <h3 class="learn-heading">Datasets</h3>
+            <p class="learn-text">The Dataset panel (sidebar icon 2, or press <kbd class="learn-kbd">2</kbd>) lets you load, generate, or create a dataset for training.</p>
+            <img class="learn-img" src="assets/images/img_dataset_panel.png" alt="Dataset panel">
+
+            <h4 class="learn-subheading">Loading data</h4>
+            <p class="learn-text">There are five ways to provide data:</p>
+            <p class="learn-text"><strong>Upload File</strong> — Select a <code>.csv</code> or <code>.json</code> file from your computer.</p>
+            <p class="learn-text"><strong>Paste Data</strong> — Paste CSV or JSON text directly into a text area.</p>
+            <p class="learn-text"><strong>From URL</strong> — Load a dataset from a remote URL.</p>
+            <p class="learn-text"><strong>Generate Synthetic</strong> — Create a synthetic dataset for quick experimentation. Available types:</p>
+            <p class="learn-text">• <strong>Moons</strong> — Two interleaving half-circles (2D, 2 classes).<br>• <strong>Circles</strong> — Concentric circles (2D, 2 classes).<br>• <strong>Spiral</strong> — Two interlocking spirals (2D, 2 classes).<br>• <strong>Gaussian Blobs</strong> — Clusters of points (2D, 2–20 clusters).<br>• <strong>Checkerboard</strong> — Grid pattern (2D, 2 classes).</p>
+            <p class="learn-text">Each comes with configurable <strong>sample count</strong> (10–10,000), <strong>noise level</strong> (0–1), and for Blobs, a <strong>cluster count</strong> (2–20).</p>
+            <p class="learn-text"><strong>Manual Editor</strong> — Opens a spreadsheet-like editor where you can create or edit data cell by cell.</p>
+            <img class="learn-img" src="assets/images/img_dataset_manual_editor.png" alt="Dataset manual editor">
+
+            <h4 class="learn-subheading">Data preview</h4>
+            <p class="learn-text">After loading data, a table appears showing the column headers and the first 15 rows. This is read-only — to edit, use the Manual Editor.</p>
+
+            <h4 class="learn-subheading">Column configuration</h4>
+            <p class="learn-text">Each column is displayed with its name and type (numeric or categorical). For each column you can configure:</p>
+            <p class="learn-text"><strong>Feature / Target</strong> — Toggle whether the column is an input feature or the prediction target. Multiple columns can be features, but only one can be the target.</p>
+            <p class="learn-text"><strong>Normalization</strong> — Choose a normalization method:<br>• <strong>None</strong> — Use raw values.<br>• <strong>MinMax</strong> — Scale values to the 0–1 range.<br>• <strong>Standard</strong> — Z-score normalization (mean 0, standard deviation 1).</p>
+
+            <h4 class="learn-subheading">Train / validation / test split</h4>
+            <p class="learn-text">Configure how the dataset is divided for training:</p>
+            <p class="learn-text"><strong>Train %</strong> — Percentage of data used for training (10–100, default 70).<br><strong>Validation %</strong> — Percentage reserved for validation (0–40).<br><strong>Test %</strong> — Automatically calculated as the remainder.</p>
+            <p class="learn-text"><strong>Shuffle</strong> — Randomize the row order before splitting (enabled by default).<br><strong>Random Seed</strong> — Set a seed for reproducible splits (default 42).</p>
+
+            <h4 class="learn-subheading">Statistics</h4>
+            <p class="learn-text">Once a dataset is loaded, the panel shows summary statistics: total rows, column count, and missing values. For numeric columns it displays mean, standard deviation, min, and max. For categorical columns it shows the unique value count.</p>
+          </div>
+
+          <div class="learn-topic" id="learn-topic-guide-training">
+            <h3 class="learn-heading">Training</h3>
+            <p class="learn-text">The Train panel (sidebar icon 3, or press <kbd class="learn-kbd">3</kbd>) controls the training process and displays progress metrics in real time.</p>
+            <img class="learn-img" src="assets/images/img_train_panel.png" alt="Train panel">
+
+            <h4 class="learn-subheading">Training controls</h4>
+            <p class="learn-text">Four buttons control the training loop:</p>
+            <p class="learn-text"><strong>Play</strong> — Start training, or resume from a pause.<br><strong>Pause</strong> — Pause the current training run.<br><strong>Stop</strong> — Stop training entirely.<br><strong>Step</strong> — Execute a single epoch, useful for step-by-step debugging.</p>
+
+            <h4 class="learn-subheading">Hyperparameters</h4>
+            <p class="learn-text"><strong>Optimizer</strong> — The algorithm used to update weights. Options: Adam (default), SGD + Momentum, SGD, RMSprop.</p>
+            <p class="learn-text"><strong>Learning Rate</strong> — How much weights are adjusted each step. Range 0.0001–1, default 0.001. Use the slider or click the value to type a precise number.</p>
+            <p class="learn-text"><strong>Epochs</strong> — Total number of training iterations. Range 100–100,000, default 1,000.</p>
+            <p class="learn-text"><strong>Batch Size</strong> — Number of samples processed per weight update. Range 1–256, default 32.</p>
+            <p class="learn-text"><strong>Loss Function</strong> — How prediction error is measured. Options: MSE, Binary CrossEntropy, Categorical CrossEntropy, MAE, Huber.</p>
+
+            <h4 class="learn-subheading">Metrics</h4>
+            <p class="learn-text">During training, the panel shows live values for: <strong>Epoch</strong> (current count), <strong>Train Loss</strong> (6 decimal places), <strong>Train Accuracy</strong> (percentage), and <strong>Time</strong> (elapsed in MM:SS format).</p>
+
+            <h4 class="learn-subheading">Charts</h4>
+            <p class="learn-text">Two real-time charts update as training progresses:</p>
+            <p class="learn-text"><strong>Loss chart</strong> (orange) — Plots the loss value at each epoch. A healthy training run shows a steadily decreasing curve.</p>
+            <p class="learn-text"><strong>Accuracy chart</strong> (green) — Plots the accuracy (0–1) at each epoch. For classification tasks, this should increase over time.</p>
+          </div>
+
+          <div class="learn-topic" id="learn-topic-guide-predictions">
+            <h3 class="learn-heading">Predictions</h3>
+            <p class="learn-text">The Predict panel (sidebar icon 4, or press <kbd class="learn-kbd">4</kbd>) lets you run the trained network on custom inputs and inspect its output.</p>
+            <img class="learn-img" src="assets/images/img_predict_panel.png" alt="Predict panel">
+
+            <h4 class="learn-subheading">Input</h4>
+            <p class="learn-text">After training, the panel generates one input field for each feature column in your dataset, labeled with the column name. Enter values manually or use <strong>Random Sample</strong> to load a random row from the dataset (the expected target values are saved for comparison).</p>
+
+            <h4 class="learn-subheading">Running a prediction</h4>
+            <p class="learn-text">Click <strong>Run Prediction</strong> to execute a forward pass through the network with the current inputs.</p>
+            <p class="learn-text"><strong>Animate forward pass</strong> — When this checkbox is enabled (on by default), a particle animation flows through the connections as the prediction runs. Particles are colored <strong>blue</strong> for positive weights and <strong>red</strong> for negative, and the animation takes about 2 seconds.</p>
+
+            <h4 class="learn-subheading">Output</h4>
+            <p class="learn-text">Each output neuron is displayed with its name and value. For softmax outputs, values are shown as percentages (e.g., 45.23%). For regression or sigmoid outputs, the raw value is displayed with 6 decimal places. A bar visualization shows confidence, with the highest output highlighted.</p>
+
+            <h4 class="learn-subheading">Expected values</h4>
+            <p class="learn-text">If you loaded a random sample, the panel also shows the expected target values alongside the prediction. For multi-class classification, a <strong>✓ Correct</strong> or <strong>✗ Mismatch</strong> badge indicates whether the prediction matches.</p>
+
+            <h4 class="learn-subheading">Decision boundary</h4>
+            <p class="learn-text">For datasets with exactly <strong>2 input features</strong>, a decision boundary visualization appears after training. It shows a colored grid representing the network's class predictions across the input space, with data points overlaid as colored dots. This helps you see how the network partitions the feature space.</p>
+          </div>
+
+          <div class="learn-topic" id="learn-topic-guide-properties">
+            <h3 class="learn-heading">Properties</h3>
+            <p class="learn-text">The Properties panel appears on the right side of the screen when you select a layer or neuron. It lets you inspect and edit parameters directly.</p>
+
+            <h4 class="learn-subheading">Layer properties</h4>
+            <img class="learn-img" src="assets/images/img_properties_sidebar_layer_selected.png" alt="Layer properties panel">
+            <p class="learn-text"><strong>General</strong> — Name (editable text), Type (Dense, Input, or Output), Activation function (Linear, ReLU, Leaky ReLU, Sigmoid, Tanh, Softmax, ELU, GELU, Swish), and Color picker.</p>
+            <p class="learn-text"><strong>Parameters</strong> — Neuron count (0–64), Use Bias checkbox (on by default), Weight Initialization method (Random, Xavier/Glorot, He, Zeros).</p>
+            <p class="learn-text"><strong>Position</strong> — X and Y coordinates in pixels.</p>
+            <p class="learn-text"><strong>Statistics</strong> (read-only) — Neuron count, connections in/out, total parameters (weights + biases), layer index, and layer ID.</p>
+
+            <h4 class="learn-subheading">Neuron properties</h4>
+            <img class="learn-img" src="assets/images/img_properties_sidebar_neuron_selected.png" alt="Neuron properties panel">
+            <p class="learn-text"><strong>Neuron</strong> — Label (read-only, e.g. "N3"), parent layer name, and an activation dropdown. Choose <em>Inherit</em> to use the layer's activation function, or set a specific one for this neuron.</p>
+            <p class="learn-text"><strong>Parameters</strong> — Bias value (editable, step 0.01).</p>
+            <p class="learn-text"><strong>Connections</strong> — Lists all incoming and outgoing connections with their weight values. Each weight is editable directly in the panel.</p>
+            <p class="learn-text"><strong>Info</strong> (read-only) — Neuron ID and position coordinates.</p>
+
+            <h4 class="learn-subheading">Multi-selection</h4>
+            <p class="learn-text">When multiple layers are selected, the panel shows the layer count, total neurons, and a shared activation dropdown (displays "— mixed —" if activations differ). When multiple neurons are selected, only the neuron count is shown.</p>
+
+            <h4 class="learn-subheading">Collapsible groups</h4>
+            <p class="learn-text">Each section in the panel can be collapsed or expanded by clicking its header. All changes are automatically saved to the undo/redo history.</p>
+          </div>
+
+          <div class="learn-topic" id="learn-topic-guide-import-export">
+            <h3 class="learn-heading">Import & Export</h3>
+            <p class="learn-text">VNNS lets you save and restore your networks, and export the canvas as an image. All options are in the <strong>File</strong> menu.</p>
+
+            <h4 class="learn-subheading">Export Topology as JSON</h4>
+            <p class="learn-text">Press <kbd class="learn-kbd">Ctrl+S</kbd> (or File → Export Topology as JSON) to download a <code>vnns-topology.json</code> file. This file contains the full network structure: every layer (with ID, name, type, activation, position, style, and neurons with their biases) and every connection (with source/target neurons, layers, and weight values).</p>
+
+            <h4 class="learn-subheading">Import Topology from JSON</h4>
+            <p class="learn-text">Press <kbd class="learn-kbd">Ctrl+O</kbd> (or File → Import Topology from JSON) to load a previously saved topology. The current network is cleared and replaced with the imported one, preserving all neuron IDs and layer structure.</p>
+
+            <h4 class="learn-subheading">Export Canvas as PNG</h4>
+            <p class="learn-text">File → Export Canvas as PNG saves the current canvas view as a <code>vnns-network.png</code> image at 2× resolution for crisp output on high-DPI displays.</p>
+
+            <h4 class="learn-subheading">New Network</h4>
+            <p class="learn-text">Press <kbd class="learn-kbd">Ctrl+Shift+N</kbd> (or File → New Network) to clear the canvas and start fresh.</p>
+          </div>
+
+          <div class="learn-topic" id="learn-topic-guide-templates">
+            <h3 class="learn-heading">Templates</h3>
+            <p class="learn-text">The Templates menu provides pre-configured networks that set up the full pipeline — layers, connections, dataset, optimizer, and hyperparameters — so you can start training immediately.</p>
+
+            <h4 class="learn-subheading">Simple Classifier (3 layers)</h4>
+            <p class="learn-text">4 → 8 (ReLU) → 3 (Softmax). Iris-like dataset. Adam optimizer, learning rate 0.01, 2,000 epochs, batch size 16, Categorical CrossEntropy loss.</p>
+
+            <h4 class="learn-subheading">Deep Network (5 layers)</h4>
+            <p class="learn-text">4 → 16 (ReLU) → 16 (ReLU) → 8 (ReLU) → 3 (Softmax). Iris-like dataset. Adam, learning rate 0.005, 3,000 epochs, batch size 16, Categorical CrossEntropy.</p>
+
+            <h4 class="learn-subheading">Wide Network (3 layers)</h4>
+            <p class="learn-text">4 → 32 (ReLU) → 3 (Softmax). Iris-like dataset. Adam, learning rate 0.01, 2,000 epochs, batch size 16, Categorical CrossEntropy.</p>
+
+            <h4 class="learn-subheading">Autoencoder</h4>
+            <p class="learn-text">4 → 8 (ReLU) → 3 (ReLU) → 8 (ReLU) → 4 (Sigmoid). 8-dimensional pattern dataset. Adam, learning rate 0.005, 10,000 epochs, batch size 16, MSE loss.</p>
+
+            <h4 class="learn-subheading">Binary Classifier</h4>
+            <p class="learn-text">2 → 8 (ReLU) → 1 (Sigmoid). XOR-like dataset. Adam, learning rate 0.01, 5,000 epochs, batch size 16, Binary CrossEntropy.</p>
+
+            <h4 class="learn-subheading">Regression</h4>
+            <p class="learn-text">1 → 32 (ReLU) → 16 (ReLU) → 1 (Linear). sin(x) regression dataset. Adam, learning rate 0.003, 5,000 epochs, batch size 16, MSE loss.</p>
+
+            <h4 class="learn-subheading">Custom Template</h4>
+            <p class="learn-text">Enter layer sizes as a comma-separated list (e.g., "4, 8, 3") and VNNS generates the architecture automatically. The first layer is set to Input (Linear), hidden layers use ReLU, and the output layer uses Sigmoid (single neuron) or Softmax (multiple neurons).</p>
+          </div>
         </div>
       </div>
     </div>
