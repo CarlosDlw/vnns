@@ -59,31 +59,12 @@ class WASMBridge {
    * @returns {string} JSON config for vnns_wasm_create_network
    */
   buildConfigJSON(networkManager, params) {
-    // Sort layers left-to-right by x position (visual order = network order)
-    const layers = networkManager.getAllLayers()
-      .sort((a, b) => a.position.x - b.position.x);
-
-    if (layers.length < 2) {
+    const allLayers = networkManager.getAllLayers();
+    if (allLayers.length < 2) {
       throw new Error('Need at least 2 layers (input + output)');
     }
 
-    // Backend layers = transitions between visual layers
-    // Backend layer i: input = neurons in visual layer i, output = neurons in visual layer i+1
-    // activation = visual layer i+1's activation
-    const numBackendLayers = layers.length - 1;
-    const config = {
-      num_layers: numBackendLayers
-    };
-
-    for (let i = 0; i < numBackendLayers; i++) {
-      const fromLayer = layers[i];
-      const toLayer = layers[i + 1];
-      config[`layer_${i}_input`] = fromLayer.neurons.length;
-      config[`layer_${i}_output`] = toLayer.neurons.length;
-      config[`layer_${i}_activation`] = toLayer.activation || 'relu';
-      config[`layer_${i}_bias`] = toLayer.useBias === false ? 0 : 1;
-      config[`layer_${i}_init`] = toLayer.weightInit || 'xavier';
-    }
+    const allConnections = networkManager.getAllConnections();
 
     // Map frontend UI values to backend strings
     const optimizerMap = {
@@ -100,15 +81,174 @@ class WASMBridge {
       'Huber': 'huber'
     };
 
-    config.optimizer = optimizerMap[params.optimizer] || 'adam';
-    config.loss = lossMap[params.loss] || 'mse';
-    config.learning_rate = params.learningRate || 0.001;
-    config.batch_size = params.batchSize || 32;
-    config.momentum = 0.9;
-    config.beta1 = 0.9;
-    config.beta2 = 0.999;
-    config.epsilon = 1e-8;
-    config.clip_gradient = 5.0;
+    const addTrainingParams = (config) => {
+      config.optimizer = optimizerMap[params.optimizer] || 'adam';
+      config.loss = lossMap[params.loss] || 'mse';
+      config.learning_rate = params.learningRate || 0.001;
+      config.batch_size = params.batchSize || 32;
+      config.momentum = 0.9;
+      config.beta1 = 0.9;
+      config.beta2 = 0.999;
+      config.epsilon = 1e-8;
+      config.clip_gradient = 5.0;
+    };
+
+    // --- Check if topology needs DAG mode ---
+    // Find unique (fromLayer, toLayer) pairs
+    const edgePairs = new Map();
+    for (const conn of allConnections) {
+      const key = conn.fromLayer + '|' + conn.toLayer;
+      if (!edgePairs.has(key)) edgePairs.set(key, []);
+      edgePairs.get(key).push(conn);
+    }
+
+    // If connections exist, check if they form a simple sequential chain
+    let useDAG = false;
+    if (allConnections.length > 0) {
+      // Sort layers by X for sequential reference
+      const xSorted = [...allLayers].sort((a, b) => a.position.x - b.position.x);
+      const adjacentPairs = new Set();
+      for (let i = 0; i < xSorted.length - 1; i++) {
+        adjacentPairs.add(xSorted[i].id + '|' + xSorted[i + 1].id);
+      }
+      // If any edge pair is NOT between adjacent layers in X order, use DAG
+      for (const key of edgePairs.keys()) {
+        if (!adjacentPairs.has(key)) { useDAG = true; break; }
+      }
+    }
+
+    if (!useDAG) {
+      // --- Sequential mode (legacy) ---
+      const layers = [...allLayers].sort((a, b) => a.position.x - b.position.x);
+      const numBackendLayers = layers.length - 1;
+      const config = { num_layers: numBackendLayers };
+
+      for (let i = 0; i < numBackendLayers; i++) {
+        const fromLayer = layers[i];
+        const toLayer = layers[i + 1];
+        const inputSize = fromLayer.neurons.length;
+        const outputSize = toLayer.neurons.length;
+        config[`layer_${i}_input`] = inputSize;
+        config[`layer_${i}_output`] = outputSize;
+        config[`layer_${i}_activation`] = toLayer.activation || 'relu';
+        config[`layer_${i}_bias`] = toLayer.useBias === false ? 0 : 1;
+        config[`layer_${i}_init`] = toLayer.weightInit || 'xavier';
+
+        const connections = networkManager.getConnectionsBetweenLayers(fromLayer.id, toLayer.id);
+        const totalWeights = inputSize * outputSize;
+        if (connections.length > 0 && connections.length < totalWeights) {
+          const mask = new Array(totalWeights).fill(0);
+          for (const conn of connections) {
+            const fromIdx = fromLayer.neurons.indexOf(conn.fromNeuron);
+            const toIdx = toLayer.neurons.indexOf(conn.toNeuron);
+            if (fromIdx >= 0 && toIdx >= 0) {
+              mask[fromIdx * outputSize + toIdx] = 1;
+            }
+          }
+          config[`layer_${i}_mask`] = mask;
+        }
+      }
+
+      addTrainingParams(config);
+      return JSON.stringify(config);
+    }
+
+    // --- DAG mode ---
+    // Build adjacency for topological sort
+    const layerById = new Map(allLayers.map(l => [l.id, l]));
+    const inDegree = new Map(allLayers.map(l => [l.id, 0]));
+    const outAdj = new Map(allLayers.map(l => [l.id, new Set()]));
+
+    for (const [key] of edgePairs) {
+      const [fromId, toId] = key.split('|');
+      outAdj.get(fromId).add(toId);
+      inDegree.set(toId, (inDegree.get(toId) || 0) + 1);
+    }
+
+    // Kahn's algorithm
+    const queue = allLayers.filter(l => inDegree.get(l.id) === 0).map(l => l.id);
+    const topoOrder = [];
+    let qi = 0;
+    while (qi < queue.length) {
+      const nid = queue[qi++];
+      topoOrder.push(nid);
+      for (const dest of (outAdj.get(nid) || [])) {
+        inDegree.set(dest, inDegree.get(dest) - 1);
+        if (inDegree.get(dest) === 0) queue.push(dest);
+      }
+    }
+
+    // Append any disconnected layers at the end (sorted by X)
+    const inTopo = new Set(topoOrder);
+    const remaining = allLayers
+      .filter(l => !inTopo.has(l.id))
+      .sort((a, b) => a.position.x - b.position.x);
+    for (const l of remaining) topoOrder.push(l.id);
+
+    if (topoOrder.length !== allLayers.length) {
+      throw new Error('Network contains a cycle');
+    }
+
+    const nodeIndex = new Map(topoOrder.map((id, i) => [id, i]));
+    const numNodes = allLayers.length;
+    const edges = Array.from(edgePairs.entries());
+    const numEdges = edges.length;
+
+    const config = {
+      num_nodes: numNodes,
+      num_layers: numEdges
+    };
+
+    // Node info
+    for (let i = 0; i < numNodes; i++) {
+      const layer = layerById.get(topoOrder[i]);
+      config[`node_${i}_size`] = layer.neurons.length;
+      config[`node_${i}_activation`] = layer.activation || 'linear';
+    }
+
+    // Edge info
+    const biasAssigned = new Set();
+    for (let e = 0; e < numEdges; e++) {
+      const [key, conns] = edges[e];
+      const [fromId, toId] = key.split('|');
+      const fromLayer = layerById.get(fromId);
+      const toLayer = layerById.get(toId);
+      const fromNode = nodeIndex.get(fromId);
+      const toNode = nodeIndex.get(toId);
+      const inputSize = fromLayer.neurons.length;
+      const outputSize = toLayer.neurons.length;
+
+      config[`layer_${e}_from`] = fromNode;
+      config[`layer_${e}_to`] = toNode;
+      config[`layer_${e}_input`] = inputSize;
+      config[`layer_${e}_output`] = outputSize;
+      config[`layer_${e}_activation`] = toLayer.activation || 'relu';
+      config[`layer_${e}_init`] = toLayer.weightInit || 'xavier';
+
+      // Only one incoming edge per destination node gets bias
+      if (biasAssigned.has(toNode)) {
+        config[`layer_${e}_bias`] = 0;
+      } else {
+        config[`layer_${e}_bias`] = toLayer.useBias === false ? 0 : 1;
+        biasAssigned.add(toNode);
+      }
+
+      // Connection mask
+      const totalWeights = inputSize * outputSize;
+      if (conns.length < totalWeights) {
+        const mask = new Array(totalWeights).fill(0);
+        for (const conn of conns) {
+          const fromIdx = fromLayer.neurons.indexOf(conn.fromNeuron);
+          const toIdx = toLayer.neurons.indexOf(conn.toNeuron);
+          if (fromIdx >= 0 && toIdx >= 0) {
+            mask[fromIdx * outputSize + toIdx] = 1;
+          }
+        }
+        config[`layer_${e}_mask`] = mask;
+      }
+    }
+
+    addTrainingParams(config);
 
     return JSON.stringify(config);
   }

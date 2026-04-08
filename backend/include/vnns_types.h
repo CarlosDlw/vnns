@@ -75,6 +75,7 @@ typedef struct {
     int use_bias;
     float weight_init_scale;
     int weight_init_type; /* 0=random, 1=xavier, 2=he */
+    const uint8_t *mask; /* connection mask [input_size * output_size], NULL = fully connected */
 } vnns_layer_config_t;
 
 /* ---- Network Config ---- */
@@ -90,6 +91,13 @@ typedef struct {
     float epsilon;
     float clip_gradient;
     int batch_size;
+
+    /* DAG topology (num_nodes == 0 → sequential mode) */
+    int num_nodes;
+    int *node_sizes;
+    int *node_activations;
+    int *layer_from_node;
+    int *layer_to_node;
 } vnns_network_config_t;
 
 /* ---- Training Metrics ---- */

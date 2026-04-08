@@ -74,6 +74,27 @@ static const char *json_find_string_value(const char *json, const char *key, cha
     return out;
 }
 
+/* Parse a JSON integer array like [1,0,1,1] into a uint8_t buffer.
+   Returns count of parsed values, or 0 if key not found. */
+static int json_find_uint8_array(const char *json, const char *key, uint8_t *out, int max_count) {
+    char buf[64];
+    snprintf(buf, sizeof(buf), "\"%s\"", key);
+    const char *p = strstr(json, buf);
+    if (!p) return 0;
+    p += strlen(buf);
+    while (*p && *p != '[') p++;
+    if (*p != '[') return 0;
+    p++; /* skip '[' */
+    int count = 0;
+    while (*p && *p != ']' && count < max_count) {
+        while (*p == ' ' || *p == ',') p++;
+        if (*p == ']') break;
+        out[count++] = (uint8_t)atoi(p);
+        while (*p && *p != ',' && *p != ']') p++;
+    }
+    return count;
+}
+
 static vnns_activation_t parse_activation(const char *name) {
     if (!name) return VNNS_ACT_RELU;
     if (strcmp(name, "relu") == 0) return VNNS_ACT_RELU;
@@ -124,6 +145,9 @@ VNNS_EXPORT int vnns_wasm_create_network(const char *config_json) {
     vnns_layer_config_t *layers = (vnns_layer_config_t *)calloc((size_t)num_layers, sizeof(vnns_layer_config_t));
     if (!layers) return -1;
 
+    /* Temporary mask buffers — allocated per layer, freed after network creation */
+    uint8_t **masks = (uint8_t **)calloc((size_t)num_layers, sizeof(uint8_t *));
+
     char act_buf[64] = {0};
     char init_buf[64] = {0};
     for (int i = 0; i < num_layers; i++) {
@@ -143,6 +167,35 @@ VNNS_EXPORT int vnns_wasm_create_network(const char *config_json) {
         json_find_string_value(config_json, key, init_buf, sizeof(init_buf));
         layers[i].weight_init_type = parse_weight_init(init_buf);
         layers[i].weight_init_scale = 0.5f;
+
+        /* Parse connection mask if present */
+        int wc = layers[i].input_size * layers[i].output_size;
+        snprintf(key, sizeof(key), "layer_%d_mask", i);
+        if (wc > 0 && masks) {
+            masks[i] = (uint8_t *)calloc((size_t)wc, sizeof(uint8_t));
+            if (masks[i]) {
+                int parsed = json_find_uint8_array(config_json, key, masks[i], wc);
+                if (parsed == wc) {
+                    /* Check if mask is all 1s — if so, skip it (fully connected) */
+                    int all_ones = 1;
+                    for (int k = 0; k < wc; k++) {
+                        if (!masks[i][k]) { all_ones = 0; break; }
+                    }
+                    if (all_ones) {
+                        free(masks[i]);
+                        masks[i] = NULL;
+                    }
+                    layers[i].mask = masks[i];
+                } else {
+                    /* No mask or wrong size — fully connected */
+                    free(masks[i]);
+                    masks[i] = NULL;
+                    layers[i].mask = NULL;
+                }
+            }
+        } else {
+            layers[i].mask = NULL;
+        }
     }
 
     char loss_buf[64] = {0};
@@ -163,9 +216,63 @@ VNNS_EXPORT int vnns_wasm_create_network(const char *config_json) {
     net_cfg.clip_gradient = json_find_float(config_json, "clip_gradient", 5.0f);
     net_cfg.batch_size = json_find_int(config_json, "batch_size", 32);
 
+    /* DAG topology */
+    int num_nodes = json_find_int(config_json, "num_nodes", 0);
+    int *dag_node_sizes = NULL;
+    int *dag_node_acts  = NULL;
+    int *dag_from       = NULL;
+    int *dag_to         = NULL;
+
+    net_cfg.num_nodes        = 0;
+    net_cfg.node_sizes       = NULL;
+    net_cfg.node_activations = NULL;
+    net_cfg.layer_from_node  = NULL;
+    net_cfg.layer_to_node    = NULL;
+
+    if (num_nodes > 0) {
+        dag_node_sizes = (int *)calloc((size_t)num_nodes, sizeof(int));
+        dag_node_acts  = (int *)calloc((size_t)num_nodes, sizeof(int));
+        dag_from       = (int *)calloc((size_t)num_layers, sizeof(int));
+        dag_to         = (int *)calloc((size_t)num_layers, sizeof(int));
+
+        if (dag_node_sizes && dag_node_acts && dag_from && dag_to) {
+            char nbuf[64] = {0};
+            for (int i = 0; i < num_nodes; i++) {
+                char key[32];
+                snprintf(key, sizeof(key), "node_%d_size", i);
+                dag_node_sizes[i] = json_find_int(config_json, key, 1);
+                snprintf(key, sizeof(key), "node_%d_activation", i);
+                nbuf[0] = '\0';
+                json_find_string_value(config_json, key, nbuf, sizeof(nbuf));
+                dag_node_acts[i] = (int)parse_activation(nbuf);
+            }
+            for (int i = 0; i < num_layers; i++) {
+                char key[32];
+                snprintf(key, sizeof(key), "layer_%d_from", i);
+                dag_from[i] = json_find_int(config_json, key, 0);
+                snprintf(key, sizeof(key), "layer_%d_to", i);
+                dag_to[i] = json_find_int(config_json, key, 0);
+            }
+
+            net_cfg.num_nodes        = num_nodes;
+            net_cfg.node_sizes       = dag_node_sizes;
+            net_cfg.node_activations = dag_node_acts;
+            net_cfg.layer_from_node  = dag_from;
+            net_cfg.layer_to_node    = dag_to;
+        }
+    }
+
     vnns_network_t *net = NULL;
     vnns_error_t err = vnns_network_create(&net, &net_cfg);
     free(layers);
+    if (masks) {
+        for (int i = 0; i < num_layers; i++) free(masks[i]);
+        free(masks);
+    }
+    free(dag_node_sizes);
+    free(dag_node_acts);
+    free(dag_from);
+    free(dag_to);
 
     if (err != VNNS_OK || !net) return -1;
     return alloc_network_id(net);

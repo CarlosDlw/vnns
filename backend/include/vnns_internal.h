@@ -39,6 +39,9 @@ struct vnns_layer {
 
     int weight_count;
     int bias_count;
+
+    /* Connection mask: 1 = connected, 0 = masked out. NULL = fully connected */
+    uint8_t *mask;
 };
 
 struct vnns_network {
@@ -65,6 +68,17 @@ struct vnns_network {
     float *temp_target;
 
     int adam_t;
+
+    /* DAG topology — all NULL/0 in sequential mode */
+    int num_nodes;
+    int *node_sizes;         /* [num_nodes] neuron count per node */
+    int *node_activations;   /* [num_nodes] vnns_activation_t per node */
+    int *layer_from_node;    /* [num_layers] source node index per edge */
+    int *layer_to_node;      /* [num_layers] dest node index per edge */
+    int *topo_order;         /* [num_nodes] execution order */
+    float **node_outputs;    /* [num_nodes] per-node output buffers */
+    float **node_pre_acts;   /* [num_nodes] per-node pre-activation buffers */
+    float **node_d_outputs;  /* [num_nodes] per-node gradient buffers */
 };
 
 #endif /* VNNS_INTERNAL_H */

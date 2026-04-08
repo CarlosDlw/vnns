@@ -8,6 +8,242 @@
 #include <stdio.h>
 #include <time.h>
 
+/* ---- DAG helpers ---- */
+
+static void compute_topo_order(vnns_network_t *net) {
+    int n = net->num_nodes;
+    int *in_deg = (int *)calloc((size_t)n, sizeof(int));
+    int *queue  = (int *)malloc((size_t)n * sizeof(int));
+    int head = 0, tail = 0;
+
+    for (int e = 0; e < net->num_layers; e++)
+        in_deg[net->layer_to_node[e]]++;
+
+    for (int i = 0; i < n; i++)
+        if (in_deg[i] == 0) queue[tail++] = i;
+
+    int idx = 0;
+    while (head < tail) {
+        int node = queue[head++];
+        net->topo_order[idx++] = node;
+        for (int e = 0; e < net->num_layers; e++) {
+            if (net->layer_from_node[e] == node) {
+                int dest = net->layer_to_node[e];
+                if (--in_deg[dest] == 0) queue[tail++] = dest;
+            }
+        }
+    }
+
+    free(in_deg);
+    free(queue);
+}
+
+static vnns_error_t network_init_dag(vnns_network_t *net, const vnns_network_config_t *cfg) {
+    int nn = cfg->num_nodes;
+    net->num_nodes = nn;
+
+    net->node_sizes       = (int *)malloc((size_t)nn * sizeof(int));
+    net->node_activations = (int *)malloc((size_t)nn * sizeof(int));
+    net->layer_from_node  = (int *)malloc((size_t)cfg->num_layers * sizeof(int));
+    net->layer_to_node    = (int *)malloc((size_t)cfg->num_layers * sizeof(int));
+    net->topo_order       = (int *)malloc((size_t)nn * sizeof(int));
+    net->node_outputs     = (float **)calloc((size_t)nn, sizeof(float *));
+    net->node_pre_acts    = (float **)calloc((size_t)nn, sizeof(float *));
+    net->node_d_outputs   = (float **)calloc((size_t)nn, sizeof(float *));
+
+    if (!net->node_sizes || !net->node_activations || !net->layer_from_node ||
+        !net->layer_to_node || !net->topo_order || !net->node_outputs ||
+        !net->node_pre_acts || !net->node_d_outputs) {
+        return VNNS_ERR_OUT_OF_MEMORY;
+    }
+
+    memcpy(net->node_sizes,       cfg->node_sizes,       (size_t)nn * sizeof(int));
+    memcpy(net->node_activations,  cfg->node_activations,  (size_t)nn * sizeof(int));
+    memcpy(net->layer_from_node,   cfg->layer_from_node,   (size_t)cfg->num_layers * sizeof(int));
+    memcpy(net->layer_to_node,     cfg->layer_to_node,     (size_t)cfg->num_layers * sizeof(int));
+
+    for (int i = 0; i < nn; i++) {
+        net->node_outputs[i]   = (float *)calloc((size_t)net->node_sizes[i], sizeof(float));
+        net->node_pre_acts[i]  = (float *)calloc((size_t)net->node_sizes[i], sizeof(float));
+        net->node_d_outputs[i] = (float *)calloc((size_t)net->node_sizes[i], sizeof(float));
+        if (!net->node_outputs[i] || !net->node_pre_acts[i] || !net->node_d_outputs[i])
+            return VNNS_ERR_OUT_OF_MEMORY;
+    }
+
+    compute_topo_order(net);
+
+    /* input/output sizes from topo order endpoints */
+    net->input_size  = net->node_sizes[net->topo_order[0]];
+    net->output_size = net->node_sizes[net->topo_order[nn - 1]];
+
+    return VNNS_OK;
+}
+
+static void network_free_dag(vnns_network_t *net) {
+    if (net->node_outputs) {
+        for (int i = 0; i < net->num_nodes; i++) free(net->node_outputs[i]);
+        free(net->node_outputs);
+    }
+    if (net->node_pre_acts) {
+        for (int i = 0; i < net->num_nodes; i++) free(net->node_pre_acts[i]);
+        free(net->node_pre_acts);
+    }
+    if (net->node_d_outputs) {
+        for (int i = 0; i < net->num_nodes; i++) free(net->node_d_outputs[i]);
+        free(net->node_d_outputs);
+    }
+    free(net->node_sizes);
+    free(net->node_activations);
+    free(net->layer_from_node);
+    free(net->layer_to_node);
+    free(net->topo_order);
+}
+
+static void network_forward_dag(vnns_network_t *net, const float *input, float *output) {
+    int input_node  = net->topo_order[0];
+    int output_node = net->topo_order[net->num_nodes - 1];
+
+    /* Copy raw input into input node */
+    memcpy(net->node_outputs[input_node], input,
+           (size_t)net->node_sizes[input_node] * sizeof(float));
+
+    for (int t = 1; t < net->num_nodes; t++) {
+        int n = net->topo_order[t];
+        int nsize = net->node_sizes[n];
+
+        /* Zero pre-activation */
+        memset(net->node_pre_acts[n], 0, (size_t)nsize * sizeof(float));
+
+        /* Accumulate all incoming edges */
+        for (int e = 0; e < net->num_layers; e++) {
+            if (net->layer_to_node[e] != n) continue;
+            vnns_layer_t *layer = net->layers[e];
+            int src = net->layer_from_node[e];
+            const float *src_out = net->node_outputs[src];
+
+            /* Cache input for backprop */
+            memcpy(layer->last_input, src_out,
+                   (size_t)layer->input_size * sizeof(float));
+
+            /* Linear accumulation: pre_act[j] += W*x + bias */
+            for (int j = 0; j < layer->output_size; j++) {
+                float sum = layer->use_bias ? layer->biases[j] : 0.0f;
+                for (int i = 0; i < layer->input_size; i++) {
+                    int idx = i * layer->output_size + j;
+                    if (layer->mask && !layer->mask[idx]) continue;
+                    sum += src_out[i] * layer->weights[idx];
+                }
+                net->node_pre_acts[n][j] += sum;
+            }
+        }
+
+        /* Apply activation at node level */
+        vnns_activation_t act = (vnns_activation_t)net->node_activations[n];
+        for (int j = 0; j < nsize; j++)
+            net->node_outputs[n][j] = vnns_math_activate(net->node_pre_acts[n][j], act);
+        if (act == VNNS_ACT_SOFTMAX)
+            vnns_math_softmax(net->node_outputs[n], nsize);
+    }
+
+    memcpy(output, net->node_outputs[output_node],
+           (size_t)net->node_sizes[output_node] * sizeof(float));
+}
+
+static void network_train_batch_dag(vnns_network_t *net,
+                                     const float *data, const float *labels,
+                                     int batch_size) {
+    int output_node = net->topo_order[net->num_nodes - 1];
+    int out_size = net->output_size;
+    float batch_inv = 1.0f / (float)batch_size;
+
+    /* Zero all edge gradients */
+    for (int e = 0; e < net->num_layers; e++)
+        vnns_layer_zero_gradients(net->layers[e]);
+
+    for (int b = 0; b < batch_size; b++) {
+        const float *sample = data  + b * net->input_size;
+        const float *label  = labels + b * out_size;
+
+        /* Forward (DAG) — writes to node_outputs */
+        float *out_buf = net->node_outputs[output_node];
+        network_forward_dag(net, sample, out_buf);
+
+        /* Zero all node gradients */
+        for (int i = 0; i < net->num_nodes; i++)
+            memset(net->node_d_outputs[i], 0,
+                   (size_t)net->node_sizes[i] * sizeof(float));
+
+        /* Compute output error */
+        vnns_activation_t out_act = (vnns_activation_t)net->node_activations[output_node];
+        if (out_act == VNNS_ACT_SOFTMAX &&
+            net->loss == VNNS_LOSS_CATEGORICAL_CROSSENTROPY) {
+            for (int j = 0; j < out_size; j++)
+                net->node_d_outputs[output_node][j] = out_buf[j] - label[j];
+        } else {
+            float inv = 1.0f / (float)out_size;
+            for (int j = 0; j < out_size; j++)
+                net->node_d_outputs[output_node][j] =
+                    vnns_math_loss_derivative_from_output(out_buf[j], label[j], net->loss) * inv;
+        }
+
+        /* Backward: reverse topo order */
+        for (int t = net->num_nodes - 1; t >= 1; t--) {
+            int n = net->topo_order[t];
+            vnns_activation_t act = (vnns_activation_t)net->node_activations[n];
+
+            for (int e = 0; e < net->num_layers; e++) {
+                if (net->layer_to_node[e] != n) continue;
+                vnns_layer_t *layer = net->layers[e];
+                int src = net->layer_from_node[e];
+
+                /* Accumulate dW, db and propagate d_input to source node */
+                for (int j = 0; j < layer->output_size; j++) {
+                    float d_act;
+                    if (act == VNNS_ACT_SOFTMAX &&
+                        net->loss == VNNS_LOSS_CATEGORICAL_CROSSENTROPY) {
+                        d_act = net->node_d_outputs[n][j];
+                    } else {
+                        d_act = net->node_d_outputs[n][j] *
+                                vnns_math_activate_derivative(
+                                    net->node_pre_acts[n][j], act);
+                    }
+
+                    for (int i = 0; i < layer->input_size; i++) {
+                        int idx = i * layer->output_size + j;
+                        if (layer->mask && !layer->mask[idx]) continue;
+                        layer->d_weights[idx] += layer->last_input[i] * d_act * batch_inv;
+                        net->node_d_outputs[src][i] += layer->weights[idx] * d_act;
+                    }
+
+                    if (layer->use_bias)
+                        layer->d_biases[j] += d_act * batch_inv;
+                }
+            }
+        }
+    }
+
+    /* Update weights */
+    net->adam_t++;
+    for (int e = 0; e < net->num_layers; e++) {
+        switch (net->optimizer_type) {
+            case VNNS_OPTIMIZER_SGD:
+                vnns_layer_update_sgd(net->layers[e], net->learning_rate, net->clip_gradient);
+                break;
+            case VNNS_OPTIMIZER_SGD_MOMENTUM:
+                vnns_layer_update_sgd_momentum(net->layers[e], net->learning_rate, net->momentum, net->clip_gradient);
+                break;
+            case VNNS_OPTIMIZER_ADAM:
+                vnns_layer_update_adam(net->layers[e], net->learning_rate, net->beta1, net->beta2, net->epsilon, net->adam_t, net->clip_gradient);
+                break;
+            case VNNS_OPTIMIZER_RMSPROP:
+                vnns_layer_update_rmsprop(net->layers[e], net->learning_rate, 0.99f, net->epsilon, net->clip_gradient);
+                break;
+            default:
+                break;
+        }
+    }
+}
+
 vnns_error_t vnns_network_create(vnns_network_t **out_network, const vnns_network_config_t *config) {
     if (!out_network || !config || !config->layers) return VNNS_ERR_NULL_PTR;
     if (config->num_layers < 1) return VNNS_ERR_INVALID_SIZE;
@@ -61,6 +297,15 @@ vnns_error_t vnns_network_create(vnns_network_t **out_network, const vnns_networ
         return VNNS_ERR_OUT_OF_MEMORY;
     }
 
+    /* DAG initialization */
+    if (config->num_nodes > 0 && config->node_sizes && config->layer_from_node) {
+        vnns_error_t dag_err = network_init_dag(net, config);
+        if (dag_err != VNNS_OK) {
+            vnns_network_free(net);
+            return dag_err;
+        }
+    }
+
     *out_network = net;
     return VNNS_OK;
 }
@@ -74,11 +319,17 @@ void vnns_network_free(vnns_network_t *network) {
     free(network->temp_output);
     free(network->temp_d_input);
     free(network->temp_target);
+    if (network->num_nodes > 0) network_free_dag(network);
     free(network);
 }
 
 vnns_error_t vnns_network_forward(vnns_network_t *network, const float *input, float *output) {
     if (!network || !input || !output) return VNNS_ERR_NULL_PTR;
+
+    if (network->num_nodes > 0) {
+        network_forward_dag(network, input, output);
+        return VNNS_OK;
+    }
 
     const float *current_input = input;
     for (int i = 0; i < network->num_layers; i++) {
@@ -141,6 +392,11 @@ vnns_error_t vnns_network_backward(vnns_network_t *network, const float *input, 
 vnns_error_t vnns_network_train_batch(vnns_network_t *network, const float *data, const float *labels, int batch_size) {
     if (!network || !data || !labels) return VNNS_ERR_NULL_PTR;
     if (batch_size < 1) return VNNS_ERR_INVALID_SIZE;
+
+    if (network->num_nodes > 0) {
+        network_train_batch_dag(network, data, labels, batch_size);
+        return VNNS_OK;
+    }
 
     /* Accumulate gradients over batch */
     for (int i = 0; i < network->num_layers; i++) {

@@ -73,6 +73,19 @@ vnns_layer_t *vnns_layer_create(const vnns_layer_config_t *config) {
 
     init_weights(layer, config->weight_init_type, scale);
 
+    /* Connection mask */
+    if (config->mask) {
+        layer->mask = (uint8_t *)malloc((size_t)layer->weight_count * sizeof(uint8_t));
+        if (!layer->mask) { vnns_layer_free(layer); return NULL; }
+        memcpy(layer->mask, config->mask, (size_t)layer->weight_count * sizeof(uint8_t));
+        /* Zero out masked weights */
+        for (int i = 0; i < layer->weight_count; i++) {
+            if (!layer->mask[i]) layer->weights[i] = 0.0f;
+        }
+    } else {
+        layer->mask = NULL;
+    }
+
     return layer;
 }
 
@@ -94,6 +107,7 @@ void vnns_layer_free(vnns_layer_t *layer) {
     free(layer->last_pre_activation);
     free(layer->last_output);
     free(layer->last_d_output);
+    free(layer->mask);
     free(layer);
 }
 
@@ -106,7 +120,9 @@ void vnns_layer_forward(vnns_layer_t *layer, const float *input, float *output) 
     for (int j = 0; j < layer->output_size; j++) {
         float sum = layer->use_bias ? layer->biases[j] : 0.0f;
         for (int i = 0; i < layer->input_size; i++) {
-            sum += in[i] * layer->weights[i * layer->output_size + j];
+            int idx = i * layer->output_size + j;
+            if (layer->mask && !layer->mask[idx]) continue;
+            sum += in[i] * layer->weights[idx];
         }
         layer->last_pre_activation[j] = sum;
         output[j] = vnns_math_activate(sum, layer->activation);
@@ -127,6 +143,8 @@ void vnns_layer_backward(vnns_layer_t *layer, const float *input, const float *d
     for (int i = 0; i < layer->input_size; i++) {
         float sum = 0.0f;
         for (int j = 0; j < layer->output_size; j++) {
+            int idx = i * layer->output_size + j;
+            if (layer->mask && !layer->mask[idx]) continue;
             float d_act;
             if (layer->activation == VNNS_ACT_SOFTMAX) {
                 /* Softmax + cross-entropy derivative is simplified to (output - target) */
@@ -134,7 +152,7 @@ void vnns_layer_backward(vnns_layer_t *layer, const float *input, const float *d
             } else {
                 d_act = layer->last_d_output[j] * vnns_math_activate_derivative(layer->last_pre_activation[j], layer->activation);
             }
-            sum += layer->weights[i * layer->output_size + j] * d_act;
+            sum += layer->weights[idx] * d_act;
         }
         d_input[i] = sum;
     }
@@ -159,7 +177,9 @@ void vnns_layer_accumulate_gradients(vnns_layer_t *layer, const float *input, co
         }
 
         for (int i = 0; i < layer->input_size; i++) {
-            layer->d_weights[i * layer->output_size + j] += input[i] * d_act * batch_size_inv;
+            int idx = i * layer->output_size + j;
+            if (layer->mask && !layer->mask[idx]) continue;
+            layer->d_weights[idx] += input[i] * d_act * batch_size_inv;
         }
 
         if (layer->use_bias) {
@@ -187,6 +207,7 @@ void vnns_layer_update_sgd(vnns_layer_t *layer, float lr, float clip) {
     clip_gradients(layer->d_weights, layer->weight_count, clip);
     if (layer->use_bias) clip_gradients(layer->d_biases, layer->bias_count, clip);
     for (int i = 0; i < layer->weight_count; i++) {
+        if (layer->mask && !layer->mask[i]) continue;
         layer->weights[i] -= lr * layer->d_weights[i];
     }
     if (layer->use_bias) {
@@ -200,6 +221,7 @@ void vnns_layer_update_sgd_momentum(vnns_layer_t *layer, float lr, float momentu
     clip_gradients(layer->d_weights, layer->weight_count, clip);
     if (layer->use_bias) clip_gradients(layer->d_biases, layer->bias_count, clip);
     for (int i = 0; i < layer->weight_count; i++) {
+        if (layer->mask && !layer->mask[i]) continue;
         layer->v_weights_mom[i] = momentum * layer->v_weights_mom[i] + layer->d_weights[i];
         layer->weights[i] -= lr * layer->v_weights_mom[i];
     }
@@ -219,6 +241,7 @@ void vnns_layer_update_adam(vnns_layer_t *layer, float lr, float beta1, float be
     float bias_corr2 = 1.0f - powf(beta2, (float)t);
 
     for (int i = 0; i < layer->weight_count; i++) {
+        if (layer->mask && !layer->mask[i]) continue;
         layer->m_weights[i] = beta1 * layer->m_weights[i] + (1.0f - beta1) * layer->d_weights[i];
         layer->v_weights[i] = beta2 * layer->v_weights[i] + (1.0f - beta2) * layer->d_weights[i] * layer->d_weights[i];
         float m_hat = layer->m_weights[i] / bias_corr1;
@@ -242,6 +265,7 @@ void vnns_layer_update_rmsprop(vnns_layer_t *layer, float lr, float decay, float
     if (layer->use_bias) clip_gradients(layer->d_biases, layer->bias_count, clip);
 
     for (int i = 0; i < layer->weight_count; i++) {
+        if (layer->mask && !layer->mask[i]) continue;
         layer->cache_weights[i] = decay * layer->cache_weights[i] + (1.0f - decay) * layer->d_weights[i] * layer->d_weights[i];
         layer->weights[i] -= lr * layer->d_weights[i] / (sqrtf(layer->cache_weights[i]) + eps);
     }
