@@ -21,6 +21,7 @@ class NetworkManager {
       name: options.name || `Layer ${this._nextLayerId - 1}`,
       type: options.type || 'dense',
       activation: options.activation || 'relu',
+      dropoutRate: options.dropoutRate || 0,
       neurons: [],
       position: options.position || { x: 0, y: 0 },
       style: options.style || {},

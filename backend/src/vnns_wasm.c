@@ -167,6 +167,8 @@ VNNS_EXPORT int vnns_wasm_create_network(const char *config_json) {
         json_find_string_value(config_json, key, init_buf, sizeof(init_buf));
         layers[i].weight_init_type = parse_weight_init(init_buf);
         layers[i].weight_init_scale = 0.5f;
+        snprintf(key, sizeof(key), "layer_%d_dropout", i);
+        layers[i].dropout_rate = json_find_float(config_json, key, 0.0f);
 
         /* Parse connection mask if present */
         int wc = layers[i].input_size * layers[i].output_size;

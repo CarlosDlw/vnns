@@ -86,6 +86,16 @@ vnns_layer_t *vnns_layer_create(const vnns_layer_config_t *config) {
         layer->mask = NULL;
     }
 
+    /* Dropout */
+    layer->dropout_rate = config->dropout_rate;
+    if (layer->dropout_rate > 0.0f && layer->dropout_rate < 1.0f) {
+        layer->dropout_mask = (uint8_t *)calloc((size_t)config->output_size, sizeof(uint8_t));
+        if (!layer->dropout_mask) { vnns_layer_free(layer); return NULL; }
+    } else {
+        layer->dropout_rate = 0.0f;
+        layer->dropout_mask = NULL;
+    }
+
     return layer;
 }
 
@@ -108,6 +118,7 @@ void vnns_layer_free(vnns_layer_t *layer) {
     free(layer->last_output);
     free(layer->last_d_output);
     free(layer->mask);
+    free(layer->dropout_mask);
     free(layer);
 }
 
@@ -134,6 +145,43 @@ void vnns_layer_forward(vnns_layer_t *layer, const float *input, float *output) 
 
     memcpy(layer->last_output, output, (size_t)layer->output_size * sizeof(float));
 }
+
+/* ---- Dropout ---- */
+
+void vnns_layer_generate_dropout_mask(vnns_layer_t *layer) {
+    if (!layer->dropout_mask || layer->dropout_rate <= 0.0f) return;
+    for (int i = 0; i < layer->output_size; i++) {
+        layer->dropout_mask[i] = (vnns_math_random_uniform(0.0f, 1.0f) >= layer->dropout_rate) ? 1 : 0;
+    }
+}
+
+void vnns_layer_apply_dropout(vnns_layer_t *layer, float *output) {
+    if (!layer->dropout_mask || layer->dropout_rate <= 0.0f) return;
+    float scale = 1.0f / (1.0f - layer->dropout_rate);
+    for (int i = 0; i < layer->output_size; i++) {
+        if (!layer->dropout_mask[i]) {
+            output[i] = 0.0f;
+        } else {
+            output[i] *= scale;
+        }
+    }
+    memcpy(layer->last_output, output, (size_t)layer->output_size * sizeof(float));
+}
+
+void vnns_layer_apply_dropout_backward(vnns_layer_t *layer, float *d_output) {
+    if (!layer->dropout_mask || layer->dropout_rate <= 0.0f) return;
+    float scale = 1.0f / (1.0f - layer->dropout_rate);
+    for (int i = 0; i < layer->output_size; i++) {
+        if (!layer->dropout_mask[i]) {
+            d_output[i] = 0.0f;
+        } else {
+            d_output[i] *= scale;
+        }
+    }
+}
+
+float vnns_layer_get_dropout_rate(const vnns_layer_t *layer) { return layer->dropout_rate; }
+const uint8_t *vnns_layer_get_dropout_mask(const vnns_layer_t *layer) { return layer->dropout_mask; }
 
 void vnns_layer_backward(vnns_layer_t *layer, const float *input, const float *d_output, float *d_input) {
     (void)input;

@@ -76,6 +76,7 @@ typedef struct {
     float weight_init_scale;
     int weight_init_type; /* 0=random, 1=xavier, 2=he */
     const uint8_t *mask; /* connection mask [input_size * output_size], NULL = fully connected */
+    float dropout_rate;   /* 0.0 = disabled, e.g. 0.2 = drop 20% of outputs */
 } vnns_layer_config_t;
 
 /* ---- Network Config ---- */

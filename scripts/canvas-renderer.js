@@ -227,6 +227,23 @@
     if (V.viewport.zoom < 0.25) drawLayerArrows();
   }
 
+  // Dropout visual mask — regenerates periodically during training
+  var _dropoutMaskCache = {};
+  var _dropoutMaskTime = 0;
+  var DROPOUT_MASK_INTERVAL = 500; // ms
+
+  function isNeuronDropped(neuronId, layerId, dropoutRate) {
+    var now = Date.now();
+    if (now - _dropoutMaskTime > DROPOUT_MASK_INTERVAL) {
+      _dropoutMaskCache = {};
+      _dropoutMaskTime = now;
+    }
+    if (_dropoutMaskCache[neuronId] !== undefined) return _dropoutMaskCache[neuronId];
+    var dropped = Math.random() < dropoutRate;
+    _dropoutMaskCache[neuronId] = dropped;
+    return dropped;
+  }
+
   function drawNeurons() {
     var viewport = V.viewport;
     var ctx = V.ctx;
@@ -235,6 +252,7 @@
     var neurons = V.network.getAllNeurons();
     var layers = V.network.getAllLayers();
     var isCollapsed = viewport.zoom < 0.5;
+    var isTraining = V.trainingState && V.trainingState.running && !V.trainingState.paused;
 
     neurons.forEach(function(neuron) {
       var pos = V.getNeuronScreenPos(neuron);
@@ -307,6 +325,27 @@
         ctx.textBaseline = 'middle';
         var idx = V.network.getNeuronsByLayer(neuron.layerId).findIndex(function(n) { return n.id === neuron.id; });
         ctx.fillText('N' + idx, pos.x, pos.y);
+      }
+
+      // Dropout visual overlay
+      if (isTraining && layer && layer.dropoutRate > 0 && !isCollapsed) {
+        if (isNeuronDropped(neuron.id, neuron.layerId, layer.dropoutRate)) {
+          // Dim overlay
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = V.isLightTheme() ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)';
+          ctx.fill();
+          // X mark
+          var xr = r * 0.55;
+          ctx.beginPath();
+          ctx.moveTo(pos.x - xr, pos.y - xr);
+          ctx.lineTo(pos.x + xr, pos.y + xr);
+          ctx.moveTo(pos.x + xr, pos.y - xr);
+          ctx.lineTo(pos.x - xr, pos.y + xr);
+          ctx.strokeStyle = '#ff4444';
+          ctx.lineWidth = Math.max(1.5, 2 * viewport.zoom);
+          ctx.stroke();
+        }
       }
     });
   }

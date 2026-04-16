@@ -133,6 +133,9 @@ class WASMBridge {
         config[`layer_${i}_activation`] = toLayer.activation || 'relu';
         config[`layer_${i}_bias`] = toLayer.useBias === false ? 0 : 1;
         config[`layer_${i}_init`] = toLayer.weightInit || 'xavier';
+        if (toLayer.dropoutRate > 0) {
+          config[`layer_${i}_dropout`] = toLayer.dropoutRate;
+        }
 
         const connections = networkManager.getConnectionsBetweenLayers(fromLayer.id, toLayer.id);
         const totalWeights = inputSize * outputSize;
@@ -245,6 +248,11 @@ class WASMBridge {
           }
         }
         config[`layer_${e}_mask`] = mask;
+      }
+
+      // Dropout rate
+      if (toLayer.dropoutRate > 0) {
+        config[`layer_${e}_dropout`] = toLayer.dropoutRate;
       }
     }
 

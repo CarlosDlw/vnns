@@ -10,6 +10,13 @@ void vnns_layer_free(vnns_layer_t *layer);
 /* ---- Forward Pass ---- */
 void vnns_layer_forward(vnns_layer_t *layer, const float *input, float *output);
 
+/* ---- Dropout ---- */
+void vnns_layer_generate_dropout_mask(vnns_layer_t *layer);
+void vnns_layer_apply_dropout(vnns_layer_t *layer, float *output);
+void vnns_layer_apply_dropout_backward(vnns_layer_t *layer, float *d_output);
+float vnns_layer_get_dropout_rate(const vnns_layer_t *layer);
+const uint8_t *vnns_layer_get_dropout_mask(const vnns_layer_t *layer);
+
 /* ---- Backward Pass ---- */
 void vnns_layer_backward(vnns_layer_t *layer, const float *input, const float *d_output, float *d_input);
 

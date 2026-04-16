@@ -57,6 +57,7 @@
     var color = layer.style.color || LAYER_COLORS[li % LAYER_COLORS.length];
     var useBias = layer.useBias !== false;
     var weightInit = layer.weightInit || 'xavier';
+    var dropoutRate = layer.dropoutRate || 0;
 
     propertiesContent.innerHTML =
       '<div class="props-group"><div class="props-group-header"><span class="codicon codicon-chevron-down"></span> General</div><div class="props-group-body">' +
@@ -68,6 +69,7 @@
       '<div class="props-group"><div class="props-group-header"><span class="codicon codicon-chevron-down"></span> Parameters</div><div class="props-group-body">' +
         '<div class="props-row"><span class="props-label">Neurons</span><input class="props-input" data-prop="neuronCount" type="number" min="0" max="64" value="' + neurons.length + '" style="width:50px" /></div>' +
         '<div class="props-row"><label class="props-checkbox"><input type="checkbox" data-prop="useBias" ' + (useBias ? 'checked' : '') + ' /> Use Bias</label></div>' +
+        '<div class="props-row"><span class="props-label">Dropout</span><input class="props-input" data-prop="dropoutRate" type="number" min="0" max="0.9" step="0.05" value="' + dropoutRate.toFixed(2) + '" style="width:60px" /></div>' +
         '<div class="props-row"><span class="props-label">Weight Init</span>' + V.makeSelectHtml('weightInit', V.WEIGHT_INITS, weightInit) + '</div>' +
       '</div></div>' +
       '<div class="props-group"><div class="props-group-header"><span class="codicon codicon-chevron-down"></span> Position</div><div class="props-group-body">' +
@@ -218,6 +220,18 @@
 
     var biasCheck = content.querySelector('[data-prop="useBias"]');
     if (biasCheck) biasCheck.addEventListener('change', function() { V.saveState(); layer.useBias = biasCheck.checked; V.invalidateBackendNetwork(); _lastPropsKey = ''; V.render(); });
+
+    var dropoutInput = content.querySelector('[data-prop="dropoutRate"]');
+    if (dropoutInput) dropoutInput.addEventListener('change', function() {
+      V.saveState();
+      var val = parseFloat(dropoutInput.value) || 0;
+      val = Math.max(0, Math.min(0.9, val));
+      layer.dropoutRate = val;
+      dropoutInput.value = val.toFixed(2);
+      V.invalidateBackendNetwork();
+      _lastPropsKey = '';
+      V.render();
+    });
 
     var weightInitSelect = content.querySelector('[data-prop="weightInit"]');
     if (weightInitSelect) weightInitSelect.addEventListener('change', function() { V.saveState(); layer.weightInit = weightInitSelect.value; V.invalidateBackendNetwork(); _lastPropsKey = ''; V.render(); });
@@ -659,6 +673,9 @@
       case 'menu-tpl-regression':
         applyTemplate({ layers: [{name:'Input',neurons:1,activation:'linear'},{name:'Hidden 1',neurons:32,activation:'relu'},{name:'Hidden 2',neurons:16,activation:'relu'},{name:'Output',neurons:1,activation:'linear'}], params:{optimizer:'Adam',lr:0.003,epochs:5000,batch:16,loss:'MSE'}, split:{train:80,val:10}, dataset:V.generateRegressionDataset() });
         break;
+      case 'menu-tpl-dropout':
+        applyTemplate({ layers: [{name:'Input',neurons:4,activation:'linear'},{name:'Hidden 1',neurons:16,activation:'relu',dropoutRate:0.3},{name:'Hidden 2',neurons:16,activation:'relu',dropoutRate:0.3},{name:'Output',neurons:3,activation:'softmax'}], params:{optimizer:'Adam',lr:0.01,epochs:3000,batch:16,loss:'Categorical CrossEntropy'}, split:{train:70,val:15}, dataset:V.generateIrisDataset() });
+        break;
       case 'menu-tpl-custom':
         openCustomTemplatePrompt();
         break;
@@ -695,7 +712,7 @@
       var createdLayers = [];
 
       layerDefs.forEach(function(def, i) {
-        var layer = V.network.createLayer({ name: def.name, type: 'dense', activation: def.activation || 'relu', position: { x: i * 200, y: 0 }, style: { color: colors[i % colors.length] } });
+        var layer = V.network.createLayer({ name: def.name, type: 'dense', activation: def.activation || 'relu', dropoutRate: def.dropoutRate || 0, position: { x: i * 200, y: 0 }, style: { color: colors[i % colors.length] } });
         for (var n = 0; n < def.neurons; n++) V.network.createNeuron({ layerId: layer.id });
         V.layoutLayerNeurons(layer);
         createdLayers.push(layer);

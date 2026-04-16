@@ -149,6 +149,71 @@ static void network_forward_dag(vnns_network_t *net, const float *input, float *
            (size_t)net->node_sizes[output_node] * sizeof(float));
 }
 
+static void network_forward_dag_train(vnns_network_t *net, const float *input, float *output) {
+    int input_node  = net->topo_order[0];
+    int output_node = net->topo_order[net->num_nodes - 1];
+
+    memcpy(net->node_outputs[input_node], input,
+           (size_t)net->node_sizes[input_node] * sizeof(float));
+
+    for (int t = 1; t < net->num_nodes; t++) {
+        int n = net->topo_order[t];
+        int nsize = net->node_sizes[n];
+
+        memset(net->node_pre_acts[n], 0, (size_t)nsize * sizeof(float));
+
+        for (int e = 0; e < net->num_layers; e++) {
+            if (net->layer_to_node[e] != n) continue;
+            vnns_layer_t *layer = net->layers[e];
+            int src = net->layer_from_node[e];
+            const float *src_out = net->node_outputs[src];
+
+            memcpy(layer->last_input, src_out,
+                   (size_t)layer->input_size * sizeof(float));
+
+            for (int j = 0; j < layer->output_size; j++) {
+                float sum = layer->use_bias ? layer->biases[j] : 0.0f;
+                for (int i = 0; i < layer->input_size; i++) {
+                    int idx = i * layer->output_size + j;
+                    if (layer->mask && !layer->mask[idx]) continue;
+                    sum += src_out[i] * layer->weights[idx];
+                }
+                net->node_pre_acts[n][j] += sum;
+            }
+        }
+
+        vnns_activation_t act = (vnns_activation_t)net->node_activations[n];
+        for (int j = 0; j < nsize; j++)
+            net->node_outputs[n][j] = vnns_math_activate(net->node_pre_acts[n][j], act);
+        if (act == VNNS_ACT_SOFTMAX)
+            vnns_math_softmax(net->node_outputs[n], nsize);
+
+        /* Apply dropout to hidden nodes (not output node).
+           Use dropout_rate from the first incoming edge that has one. */
+        if (n != output_node) {
+            for (int e = 0; e < net->num_layers; e++) {
+                if (net->layer_to_node[e] != n) continue;
+                vnns_layer_t *layer = net->layers[e];
+                if (layer->dropout_rate > 0.0f && layer->dropout_mask) {
+                    vnns_layer_generate_dropout_mask(layer);
+                    float scale = 1.0f / (1.0f - layer->dropout_rate);
+                    for (int j = 0; j < nsize && j < layer->output_size; j++) {
+                        if (!layer->dropout_mask[j]) {
+                            net->node_outputs[n][j] = 0.0f;
+                        } else {
+                            net->node_outputs[n][j] *= scale;
+                        }
+                    }
+                    break; /* Only apply dropout once per node */
+                }
+            }
+        }
+    }
+
+    memcpy(output, net->node_outputs[output_node],
+           (size_t)net->node_sizes[output_node] * sizeof(float));
+}
+
 static void network_train_batch_dag(vnns_network_t *net,
                                      const float *data, const float *labels,
                                      int batch_size) {
@@ -164,9 +229,9 @@ static void network_train_batch_dag(vnns_network_t *net,
         const float *sample = data  + b * net->input_size;
         const float *label  = labels + b * out_size;
 
-        /* Forward (DAG) — writes to node_outputs */
+        /* Forward (DAG with dropout) — writes to node_outputs */
         float *out_buf = net->node_outputs[output_node];
-        network_forward_dag(net, sample, out_buf);
+        network_forward_dag_train(net, sample, out_buf);
 
         /* Zero all node gradients */
         for (int i = 0; i < net->num_nodes; i++)
@@ -190,6 +255,26 @@ static void network_train_batch_dag(vnns_network_t *net,
         for (int t = net->num_nodes - 1; t >= 1; t--) {
             int n = net->topo_order[t];
             vnns_activation_t act = (vnns_activation_t)net->node_activations[n];
+
+            /* Apply dropout mask to node gradients (hidden nodes only) */
+            if (n != output_node) {
+                for (int e = 0; e < net->num_layers; e++) {
+                    if (net->layer_to_node[e] != n) continue;
+                    vnns_layer_t *layer = net->layers[e];
+                    if (layer->dropout_rate > 0.0f && layer->dropout_mask) {
+                        float scale = 1.0f / (1.0f - layer->dropout_rate);
+                        int nsize = net->node_sizes[n];
+                        for (int j = 0; j < nsize && j < layer->output_size; j++) {
+                            if (!layer->dropout_mask[j]) {
+                                net->node_d_outputs[n][j] = 0.0f;
+                            } else {
+                                net->node_d_outputs[n][j] *= scale;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
 
             for (int e = 0; e < net->num_layers; e++) {
                 if (net->layer_to_node[e] != n) continue;
@@ -430,6 +515,11 @@ vnns_error_t vnns_network_train_batch(vnns_network_t *network, const float *data
         for (int i = 0; i < network->num_layers; i++) {
             float *layer_out = (i == network->num_layers - 1) ? output : d_input;
             vnns_layer_forward(network->layers[i], current_input, layer_out);
+            /* Apply dropout to hidden layers only (not last layer) */
+            if (i < network->num_layers - 1) {
+                vnns_layer_generate_dropout_mask(network->layers[i]);
+                vnns_layer_apply_dropout(network->layers[i], layer_out);
+            }
             current_input = layer_out;
         }
 
@@ -452,6 +542,10 @@ vnns_error_t vnns_network_train_batch(vnns_network_t *network, const float *data
         const float *cur_d = d_output;
         for (int i = network->num_layers - 1; i >= 0; i--) {
             vnns_layer_t *layer = network->layers[i];
+            /* Apply dropout mask to gradients for hidden layers */
+            if (i < network->num_layers - 1) {
+                vnns_layer_apply_dropout_backward(layer, (float *)cur_d);
+            }
             const float *layer_in = (i == 0) ? sample_input : vnns_layer_get_last_output(network->layers[i - 1]);
             vnns_layer_accumulate_gradients(layer, layer_in, cur_d, batch_inv);
             if (i > 0) {

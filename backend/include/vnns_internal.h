@@ -42,6 +42,10 @@ struct vnns_layer {
 
     /* Connection mask: 1 = connected, 0 = masked out. NULL = fully connected */
     uint8_t *mask;
+
+    /* Dropout */
+    float dropout_rate;       /* 0.0 = no dropout, e.g. 0.2 = drop 20% */
+    uint8_t *dropout_mask;    /* [output_size] 1 = keep, 0 = dropped. NULL when rate==0 */
 };
 
 struct vnns_network {
@@ -68,6 +72,7 @@ struct vnns_network {
     float *temp_target;
 
     int adam_t;
+    int training;  /* 1 during training (dropout active), 0 during inference */
 
     /* DAG topology — all NULL/0 in sequential mode */
     int num_nodes;
