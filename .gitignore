@@ -6,6 +6,9 @@ backend/build/libvnns.a
 # Editor
 .vscode/
 
+# Notes
+TODO.md
+
 # OS
 .DS_Store
 Thumbs.db
