@@ -1,51 +1,78 @@
 # VNNS — Visual Neural Network Sandbox
 
-A browser-based neural network designer and trainer. Build, visualize, and train neural networks entirely in your browser — no server required.
+Build, visualize, and train neural networks entirely in your browser — no server, no dependencies, no setup.
 
-**[Try it live →](https://carlosdlw.github.io/vnns/)**
+<p align="center">
+  <img src="assets/images/full_view.png" alt="VNNS — Full View" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://carlosdlw.github.io/vnns/"><strong>Try it live →</strong></a>
+</p>
+
+---
 
 ## Features
 
-**Canvas Editor**
-- Drag & drop layers and neurons
-- Auto-connect layers, manual connection mode
+### Canvas Editor
+- Drag & drop layers and neurons on an infinite canvas
+- Auto-connect with 6 connection modes or connect manually
 - Undo/Redo, Auto Layout, Snap to Grid
-- Semantic zoom (full detail → collapsed → minimal)
-- Context menus, keyboard shortcuts
+- Semantic zoom: full detail → collapsed → minimal
+- Context menus, keyboard shortcuts, minimap navigation
 
-**Training**
-- C backend compiled to WebAssembly — trains in-browser
-- 4 optimizers: SGD, Adam, RMSProp, AdaGrad
-- 9 activations: ReLU, Sigmoid, Tanh, Softmax, LeakyReLU, ELU, GELU, Swish, Linear
-- 4 loss functions: MSE, Cross-Entropy, Binary Cross-Entropy, MAE
-- Gradient clipping, configurable learning rate, batch size, train/test split
+### Network Layers
+- **Dense** — fully connected layers
+- **Dropout** — inverted dropout with configurable rate (0–0.9), visual overlay during training
+- **Batch Normalization** — post-linear, pre-activation; training uses batch stats, inference uses running EMA
 
-**Visualization**
-- Real-time loss/accuracy charts
-- Weight-colored connections (positive blue, negative red)
+### Training
+- C backend compiled to **WebAssembly** — runs entirely in a **Web Worker** (UI never freezes)
+- **4 optimizers**: SGD, SGD + Momentum, Adam, RMSprop
+- **9 activations**: ReLU, Sigmoid, Tanh, Softmax, LeakyReLU, ELU, GELU, Swish, Linear
+- **5 loss functions**: MSE, Binary CrossEntropy, Categorical CrossEntropy, MAE, Huber
+- **Early Stopping** with configurable patience and min delta
+- Configurable learning rate, batch size, epochs, train/val/test split
+- Real-time loss and accuracy charts with validation loss tracking
+
+### Visualization
+- Weight-colored connections (blue = positive, red = negative)
 - Neuron activation heatmap
+- Decision boundary plot (2D classification)
+- Forward pass animation
 - Tooltips on hover (weights, biases, activations)
 
-**Templates**
-- XOR (binary classifier)
-- Iris (multi-class)
-- Regression (sine curve)
-- Autoencoder
+### Datasets
+- Upload CSV/JSON, paste data, or load from URL
+- Synthetic generators: Moons, Circles, Spiral, Gaussian Blobs, Checkerboard, XOR, Iris, Regression, Autoencoder
+- Manual dataset editor
+- Per-column role assignment (feature/target) and normalization
 
-**I/O**
-- Import/Export network topology as JSON
-- Export canvas as PNG
+### Templates
+- Classifier (Iris) · Deep · Wide · Autoencoder · Binary (XOR) · Regression
+- Dropout Regularization · Batch Normalization
+- Custom (define layer sizes interactively)
+
+### Import / Export
+- Network topology as JSON
+- Trained weights as JSON
+- Canvas snapshot as PNG
+
+---
 
 ## Tech Stack
 
-| Layer | Tech |
-|-------|------|
-| Frontend | HTML5 Canvas, vanilla JS, CSS |
-| Backend | C → WebAssembly (Emscripten) |
-| Charts | Chart.js 4.4.7 |
-| Icons | VS Code Codicons |
+| Component | Technology |
+|-----------|------------|
+| Frontend  | HTML5 Canvas, Vanilla JS, CSS |
+| Backend   | C99 → WebAssembly (Emscripten) |
+| Training  | Web Worker (off main thread) |
+| Charts    | Chart.js 4.4.7 |
+| Icons     | VS Code Codicons |
 
-## Building the WASM backend
+---
+
+## Building the WASM Backend
 
 Requires [Emscripten](https://emscripten.org/docs/getting_started/downloads.html):
 
@@ -54,9 +81,9 @@ cd backend
 make clean && make
 ```
 
-This produces `build/vnns.js` and `build/vnns.wasm`.
+Outputs `build/vnns.js` and `build/vnns.wasm`.
 
-## Running locally
+## Running Locally
 
 Serve the root directory with any static file server:
 
@@ -66,7 +93,7 @@ npx serve .
 python -m http.server 8000
 ```
 
-Open `http://localhost:8000` in your browser.
+Open `http://localhost:8000`.
 
 ## License
 
