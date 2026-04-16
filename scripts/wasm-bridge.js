@@ -366,6 +366,11 @@ class WASMBridge {
     if (this.ready && this.netId >= 0) this._setBatchSize(this.netId, bs);
   }
 
+  setWeightsJSON(jsonStr) {
+    if (!this.ready || this.netId < 0) return;
+    this._setWeights(this.netId, jsonStr);
+  }
+
   destroy() {
     if (this.netId >= 0 && this.ready) {
       this._freeNetwork(this.netId);
