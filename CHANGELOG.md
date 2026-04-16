@@ -19,6 +19,10 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - BN badge indicator on canvas layer footer
 - "Batch Normalization" network template (4→16(BN)→16(BN)→3, Iris dataset)
 - BN parameters (gamma, beta, running_mean, running_var) included in weights JSON serialization for correct Worker→main thread sync
+- Early Stopping: checkbox toggle + configurable Patience (1–500) and Min Delta (0–0.1) sliders
+- Validation loss evaluation per epoch when val split > 0
+- Val Loss metric displayed in training metrics panel
+- Val Loss line (blue dashed) on loss chart with Train/Val legend
 
 ### Changed
 - Modularized `main.js` (~5300 lines) into 7 focused modules:

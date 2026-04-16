@@ -131,9 +131,11 @@
     document.getElementById('metric-epoch').textContent = '0';
     document.getElementById('metric-loss').textContent = '—';
     document.getElementById('metric-accuracy').textContent = '—';
+    document.getElementById('metric-val-loss').textContent = '—';
     document.getElementById('metric-time').textContent = '00:00';
     V.lossChart.data.labels = [];
     V.lossChart.data.datasets[0].data = [];
+    V.lossChart.data.datasets[1].data = [];
     V.lossChart.update();
     V.accuracyChart.data.labels = [];
     V.accuracyChart.data.datasets[0].data = [];
@@ -213,7 +215,7 @@
 
         case 'progress':
           V.trainingState.epoch = msg.epoch;
-          V.updateMetrics(msg.epoch, msg.loss, msg.accuracy);
+          V.updateMetrics(msg.epoch, msg.loss, msg.accuracy, msg.valLoss);
           if (msg.weightsJSON) {
             V.trainingState.lastWeightsJSON = msg.weightsJSON;
             syncWeightsFromBackend(JSON.parse(msg.weightsJSON));
@@ -228,7 +230,7 @@
           setTrainingButtonStates(false, false);
 
           var elapsed = Date.now() - V.trainingState.startTime;
-          V.updateMetrics(msg.epoch, msg.loss, msg.accuracy);
+          V.updateMetrics(msg.epoch, msg.loss, msg.accuracy, msg.valLoss);
           document.getElementById('metric-time').textContent = V.formatTime(elapsed);
 
           if (msg.weightsJSON) {
@@ -238,8 +240,15 @@
             V.renderDecisionBoundary();
           }
 
+          if (msg.earlyStopped) {
+            V.logOutput('Early stopping triggered at epoch ' + msg.epoch + ' (patience exhausted)', 'warning');
+          }
           V.logOutput('Training complete — ' + msg.epoch + ' epochs in ' + V.formatTime(elapsed), 'success');
           V.logOutput('Train — Loss: ' + msg.loss.toFixed(6) + ', Accuracy: ' + (msg.accuracy * 100).toFixed(2) + '%', 'info');
+
+          if (msg.valLoss !== undefined && msg.valLoss >= 0) {
+            V.logOutput('Val — Loss: ' + msg.valLoss.toFixed(6), 'info');
+          }
 
           if (msg.testLoss !== undefined) {
             V.logOutput('Test — Loss: ' + msg.testLoss.toFixed(6) + ', Accuracy: ' + (msg.testAccuracy * 100).toFixed(2) + '%', 'success');
@@ -364,6 +373,13 @@
 
       V.logOutput('Training started — ' + params.epochs + ' epochs, LR=' + params.learningRate + ', Batch=' + params.batchSize + ', Optimizer=' + params.optimizer + ', Loss=' + params.loss);
       V.logOutput('Dataset split — Train: ' + preparedData.trainCount + ', Val: ' + preparedData.valCount + ', Test: ' + preparedData.testCount + ' samples');
+      if (document.getElementById('early-stopping-check').checked) {
+        V.logOutput('Early Stopping enabled — Patience: ' + document.getElementById('patience-slider').value + ', Min Delta: ' + document.getElementById('min-delta-slider').value);
+      }
+      V.logOutput('Network — ' + sortedLayers.map(function(l) { return l.neurons.length; }).join(' → ') + ' (' + sortedLayers.length + ' layers)');
+
+      // Show/hide val loss metric based on val split
+      document.getElementById('metric-val-loss-item').style.display = preparedData.valCount > 0 ? '' : 'none';
       V.logOutput('Network — ' + sortedLayers.map(function(l) { return l.neurons.length; }).join(' → ') + ' (' + sortedLayers.length + ' layers)');
 
       resetMetrics();
@@ -385,11 +401,17 @@
         trainData: preparedData.trainData,
         trainLabels: preparedData.trainLabels,
         trainCount: preparedData.trainCount,
+        valData: preparedData.valData,
+        valLabels: preparedData.valLabels,
+        valCount: preparedData.valCount,
         testData: preparedData.testData,
         testLabels: preparedData.testLabels,
         testCount: preparedData.testCount,
         maxEpochs: params.epochs,
-        weightsInterval: 50
+        weightsInterval: 50,
+        earlyStopping: document.getElementById('early-stopping-check').checked,
+        patience: parseInt(document.getElementById('patience-slider').value) || 10,
+        minDelta: parseFloat(document.getElementById('min-delta-slider').value) || 0
       });
     } catch (err) {
       V.logOutput('Training error: ' + err.message, 'error');
@@ -463,6 +485,9 @@
           trainData: V.trainingState.preparedData.trainData,
           trainLabels: V.trainingState.preparedData.trainLabels,
           trainCount: V.trainingState.preparedData.trainCount,
+          valData: V.trainingState.preparedData.valData,
+          valLabels: V.trainingState.preparedData.valLabels,
+          valCount: V.trainingState.preparedData.valCount,
           testData: V.trainingState.preparedData.testData,
           testLabels: V.trainingState.preparedData.testLabels,
           testCount: V.trainingState.preparedData.testCount,
@@ -515,6 +540,14 @@
     });
     document.getElementById('optimizer-select').addEventListener('change', invalidateBackendNetwork);
     document.getElementById('loss-select').addEventListener('change', invalidateBackendNetwork);
+
+    // Early stopping toggle
+    var esCheck = document.getElementById('early-stopping-check');
+    esCheck.checked = false;
+    document.getElementById('early-stopping-params').style.display = 'none';
+    esCheck.addEventListener('change', function() {
+      document.getElementById('early-stopping-params').style.display = this.checked ? '' : 'none';
+    });
   }
 
   // --- Exports ---

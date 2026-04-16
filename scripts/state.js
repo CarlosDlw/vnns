@@ -200,13 +200,20 @@ window.VNNS = window.VNNS || {};
     // Overridden in training-controller.js
   };
 
-  V.updateMetrics = function(epoch, loss, accuracy) {
+  V.updateMetrics = function(epoch, loss, accuracy, valLoss) {
     document.getElementById('metric-epoch').textContent = epoch;
     document.getElementById('metric-loss').textContent = loss.toFixed(6);
     document.getElementById('metric-accuracy').textContent = (accuracy * 100).toFixed(2) + '%';
 
+    if (valLoss !== undefined && valLoss >= 0) {
+      document.getElementById('metric-val-loss').textContent = valLoss.toFixed(6);
+    }
+
     V.lossChart.data.labels.push(epoch);
     V.lossChart.data.datasets[0].data.push(loss);
+    if (valLoss !== undefined && valLoss >= 0) {
+      V.lossChart.data.datasets[1].data.push(valLoss);
+    }
     V.accuracyChart.data.labels.push(epoch);
     V.accuracyChart.data.datasets[0].data.push(accuracy);
 

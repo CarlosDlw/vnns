@@ -281,6 +281,31 @@
                   <option>Huber</option>
                 </select>
               </div>
+
+              <div class="param-group">
+                <label class="predict-checkbox-label" style="margin-top:0">
+                  <input type="checkbox" id="early-stopping-check">
+                  <span>Early Stopping</span>
+                </label>
+              </div>
+              <div id="early-stopping-params" style="display:none">
+                <div class="param-group">
+                  <div class="param-label">
+                    <span>Patience</span>
+                    <span class="param-value editable" id="patience-value" data-min="1" data-max="500" data-decimals="0">10</span>
+                    <input type="text" class="param-input" id="patience-input" data-min="1" data-max="500" data-decimals="0" value="10">
+                  </div>
+                  <input type="range" class="param-slider" id="patience-slider" min="1" max="500" step="1" value="10">
+                </div>
+                <div class="param-group">
+                  <div class="param-label">
+                    <span>Min Delta</span>
+                    <span class="param-value editable" id="min-delta-value" data-min="0" data-max="0.1" data-decimals="6">0.000000</span>
+                    <input type="text" class="param-input" id="min-delta-input" data-min="0" data-max="0.1" data-decimals="6" value="0">
+                  </div>
+                  <input type="range" class="param-slider" id="min-delta-slider" min="0" max="0.1" step="0.0001" value="0">
+                </div>
+              </div>
             </div>
             <div class="sidebar-section-group">
               <div class="section-title">Metrics</div>
@@ -296,6 +321,10 @@
                 <div class="metric-item">
                   <span class="metric-label">Train Accuracy</span>
                   <span class="metric-value" id="metric-accuracy">—</span>
+                </div>
+                <div class="metric-item" id="metric-val-loss-item" style="display:none">
+                  <span class="metric-label">Val Loss</span>
+                  <span class="metric-value" id="metric-val-loss">—</span>
                 </div>
                 <div class="metric-item">
                   <span class="metric-label">Time</span>

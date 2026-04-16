@@ -26,7 +26,15 @@ let training = {
   sampleCount: 0,
   testDataPtr: 0,
   testLabelsPtr: 0,
-  testCount: 0
+  testCount: 0,
+  valDataPtr: 0,
+  valLabelsPtr: 0,
+  valCount: 0,
+  earlyStopping: false,
+  patience: 10,
+  minDelta: 0,
+  bestValLoss: Infinity,
+  patienceCounter: 0
 };
 
 async function initWASM() {
@@ -69,6 +77,8 @@ function freeTrainingData() {
   if (training.labelsPtr) { module._free(training.labelsPtr); training.labelsPtr = 0; }
   if (training.testDataPtr) { module._free(training.testDataPtr); training.testDataPtr = 0; }
   if (training.testLabelsPtr) { module._free(training.testLabelsPtr); training.testLabelsPtr = 0; }
+  if (training.valDataPtr) { module._free(training.valDataPtr); training.valDataPtr = 0; }
+  if (training.valLabelsPtr) { module._free(training.valLabelsPtr); training.valLabelsPtr = 0; }
 }
 
 function getWeightsJSON() {
@@ -100,6 +110,14 @@ function setupTrainingData(msg) {
   } else {
     training.testCount = 0;
   }
+
+  if (msg.valData && msg.valData.length > 0) {
+    training.valDataPtr = allocFloats(msg.valData);
+    training.valLabelsPtr = allocFloats(msg.valLabels);
+    training.valCount = msg.valCount;
+  } else {
+    training.valCount = 0;
+  }
 }
 
 function runTrainingLoop() {
@@ -108,6 +126,7 @@ function runTrainingLoop() {
   const batchStart = training.epoch;
   const startTime = performance.now();
   let lastLoss = 0, lastAccuracy = 0;
+  let earlyStopped = false;
 
   // Run epochs for ~16ms before yielding to allow message processing
   while (training.epoch < training.maxEpochs && training.running) {
@@ -117,7 +136,27 @@ function runTrainingLoop() {
     if (performance.now() - startTime >= 16) break;
   }
 
-  const isComplete = training.epoch >= training.maxEpochs;
+  // Evaluate validation set
+  let valLoss = -1;
+  if (training.valCount > 0) {
+    _evaluate(netId, training.valDataPtr, training.valLabelsPtr, training.valCount);
+    valLoss = _getLastLoss();
+  }
+
+  // Early stopping check
+  if (training.earlyStopping && valLoss >= 0) {
+    if (valLoss < training.bestValLoss - training.minDelta) {
+      training.bestValLoss = valLoss;
+      training.patienceCounter = 0;
+    } else {
+      training.patienceCounter += (training.epoch - batchStart);
+    }
+    if (training.patienceCounter >= training.patience) {
+      earlyStopped = true;
+    }
+  }
+
+  const isComplete = training.epoch >= training.maxEpochs || earlyStopped;
   const prevInterval = Math.floor(batchStart / training.weightsInterval);
   const currInterval = Math.floor(training.epoch / training.weightsInterval);
   const sendWeights = isComplete || (currInterval > prevInterval);
@@ -129,8 +168,11 @@ function runTrainingLoop() {
       epoch: training.epoch,
       loss: lastLoss,
       accuracy: lastAccuracy,
-      weightsJSON: getWeightsJSON()
+      weightsJSON: getWeightsJSON(),
+      earlyStopped: earlyStopped
     };
+
+    if (valLoss >= 0) msg.valLoss = valLoss;
 
     if (training.testCount > 0) {
       _evaluate(netId, training.testDataPtr, training.testLabelsPtr, training.testCount);
@@ -149,6 +191,8 @@ function runTrainingLoop() {
     loss: lastLoss,
     accuracy: lastAccuracy
   };
+
+  if (valLoss >= 0) msg.valLoss = valLoss;
 
   if (sendWeights) {
     msg.weightsJSON = getWeightsJSON();
@@ -185,6 +229,11 @@ self.onmessage = function(e) {
       training.weightsInterval = msg.weightsInterval || 50;
       training.running = true;
       training.paused = false;
+      training.earlyStopping = !!msg.earlyStopping;
+      training.patience = msg.patience || 10;
+      training.minDelta = msg.minDelta || 0;
+      training.bestValLoss = Infinity;
+      training.patienceCounter = 0;
 
       self.postMessage({ type: 'started' });
       runTrainingLoop();

@@ -138,6 +138,10 @@ document.addEventListener('DOMContentLoaded', function() {
   var epochsValue = document.getElementById('epochs-value');
   var batchSlider = document.getElementById('batch-slider');
   var batchValue = document.getElementById('batch-value');
+  var patienceSlider = document.getElementById('patience-slider');
+  var patienceValue = document.getElementById('patience-value');
+  var minDeltaSlider = document.getElementById('min-delta-slider');
+  var minDeltaValue = document.getElementById('min-delta-value');
 
   if (lrSlider && lrValue) {
     lrSlider.addEventListener('input', function() {
@@ -154,11 +158,23 @@ document.addEventListener('DOMContentLoaded', function() {
       batchValue.textContent = parseInt(batchSlider.value).toString();
     });
   }
+  if (patienceSlider && patienceValue) {
+    patienceSlider.addEventListener('input', function() {
+      patienceValue.textContent = parseInt(patienceSlider.value).toString();
+    });
+  }
+  if (minDeltaSlider && minDeltaValue) {
+    minDeltaSlider.addEventListener('input', function() {
+      minDeltaValue.textContent = parseFloat(minDeltaSlider.value).toFixed(6);
+    });
+  }
 
   var paramConfigs = [
     { valueEl: document.getElementById('lr-value'), inputEl: document.getElementById('lr-input'), sliderEl: lrSlider, decimals: 6 },
     { valueEl: document.getElementById('epochs-value'), inputEl: document.getElementById('epochs-input'), sliderEl: epochsSlider, decimals: 0 },
     { valueEl: document.getElementById('batch-value'), inputEl: document.getElementById('batch-input'), sliderEl: batchSlider, decimals: 0 },
+    { valueEl: document.getElementById('patience-value'), inputEl: document.getElementById('patience-input'), sliderEl: patienceSlider, decimals: 0 },
+    { valueEl: document.getElementById('min-delta-value'), inputEl: document.getElementById('min-delta-input'), sliderEl: minDeltaSlider, decimals: 6 },
   ];
 
   paramConfigs.forEach(function(config) {
@@ -209,10 +225,16 @@ document.addEventListener('DOMContentLoaded', function() {
     animation: false
   };
 
+  var lossChartOptions = JSON.parse(JSON.stringify(chartDefaults));
+  lossChartOptions.plugins = { legend: { display: true, labels: { color: '#969696', font: { size: 9 }, boxWidth: 12, padding: 6 } } };
+
   V.lossChart = new Chart(document.getElementById('loss-chart').getContext('2d'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#f48771', backgroundColor: 'rgba(244, 135, 113, 0.1)', borderWidth: 1.5, fill: true, pointRadius: 0, tension: 0.3 }] },
-    options: chartDefaults
+    data: { labels: [], datasets: [
+      { label: 'Train', data: [], borderColor: '#f48771', backgroundColor: 'rgba(244, 135, 113, 0.1)', borderWidth: 1.5, fill: true, pointRadius: 0, tension: 0.3 },
+      { label: 'Val', data: [], borderColor: '#569cd6', backgroundColor: 'rgba(86, 156, 214, 0.08)', borderWidth: 1.5, fill: false, pointRadius: 0, tension: 0.3, borderDash: [4, 3] }
+    ] },
+    options: lossChartOptions
   });
 
   V.accuracyChart = new Chart(document.getElementById('accuracy-chart').getContext('2d'), {
