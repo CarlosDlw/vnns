@@ -137,6 +137,16 @@ static void network_forward_dag(vnns_network_t *net, const float *input, float *
             }
         }
 
+        /* Apply batch normalization (inference: running stats) from first incoming BN edge */
+        for (int e = 0; e < net->num_layers; e++) {
+            if (net->layer_to_node[e] != n) continue;
+            vnns_layer_t *layer = net->layers[e];
+            if (layer->use_batch_norm) {
+                vnns_layer_bn_forward_infer(layer, net->node_pre_acts[n]);
+                break;
+            }
+        }
+
         /* Apply activation at node level */
         vnns_activation_t act = (vnns_activation_t)net->node_activations[n];
         for (int j = 0; j < nsize; j++)
@@ -179,6 +189,16 @@ static void network_forward_dag_train(vnns_network_t *net, const float *input, f
                     sum += src_out[i] * layer->weights[idx];
                 }
                 net->node_pre_acts[n][j] += sum;
+            }
+        }
+
+        /* Apply BN using running stats (DAG train mode — batch-level BN not supported for DAG) */
+        for (int e = 0; e < net->num_layers; e++) {
+            if (net->layer_to_node[e] != n) continue;
+            vnns_layer_t *layer = net->layers[e];
+            if (layer->use_batch_norm) {
+                vnns_layer_bn_forward_infer(layer, net->node_pre_acts[n]);
+                break;
             }
         }
 
@@ -483,102 +503,383 @@ vnns_error_t vnns_network_train_batch(vnns_network_t *network, const float *data
         return VNNS_OK;
     }
 
-    /* Accumulate gradients over batch */
+    /* Check if any layer uses batch normalization */
+    int has_bn = 0;
+    for (int i = 0; i < network->num_layers; i++) {
+        if (network->layers[i]->use_batch_norm) { has_bn = 1; break; }
+    }
+
+    /* Zero gradients (weights + BN) */
     for (int i = 0; i < network->num_layers; i++) {
         vnns_layer_zero_gradients(network->layers[i]);
+        vnns_layer_bn_zero_gradients(network->layers[i]);
     }
 
-    /* Compute max layer size for temp buffers */
-    int max_size = network->input_size;
-    for (int i = 0; i < network->num_layers; i++) {
-        if (network->layers[i]->output_size > max_size)
-            max_size = network->layers[i]->output_size;
-    }
-
-    float *output = (float *)malloc((size_t)max_size * sizeof(float));
-    float *d_output = (float *)malloc((size_t)max_size * sizeof(float));
-    float *d_input = (float *)malloc((size_t)max_size * sizeof(float));
-
-    if (!output || !d_output || !d_input) {
-        free(output); free(d_output); free(d_input);
-        return VNNS_ERR_OUT_OF_MEMORY;
-    }
-
+    int nl = network->num_layers;
     float batch_inv = 1.0f / (float)batch_size;
 
-    for (int b = 0; b < batch_size; b++) {
-        const float *sample_input = &data[b * network->input_size];
-        const float *sample_label = &labels[b * network->output_size];
-
-        /* Forward */
-        const float *current_input = sample_input;
-        for (int i = 0; i < network->num_layers; i++) {
-            float *layer_out = (i == network->num_layers - 1) ? output : d_input;
-            vnns_layer_forward(network->layers[i], current_input, layer_out);
-            /* Apply dropout to hidden layers only (not last layer) */
-            if (i < network->num_layers - 1) {
-                vnns_layer_generate_dropout_mask(network->layers[i]);
-                vnns_layer_apply_dropout(network->layers[i], layer_out);
-            }
-            current_input = layer_out;
+    if (has_bn) {
+        /*
+         * Batch-aware forward/backward.
+         * We store per-layer activations for the entire batch so BN can compute
+         * mean/var across samples. Layout: layer_acts[layer][sample * size + j]
+         */
+        int max_size = network->input_size;
+        for (int i = 0; i < nl; i++) {
+            if (network->layers[i]->output_size > max_size)
+                max_size = network->layers[i]->output_size;
         }
 
-        /* Output error — scale by 1/output_size to match mean loss */
-        float loss_scale = (network->loss != VNNS_LOSS_CATEGORICAL_CROSSENTROPY)
-            ? 1.0f / (float)network->output_size : 1.0f;
-        for (int i = 0; i < network->output_size; i++) {
-            d_output[i] = vnns_math_loss_derivative_from_output(output[i], sample_label[i], network->loss) * loss_scale;
+        /* Allocate per-layer batch buffers: pre_act and output for each layer */
+        float **layer_pre_act = (float **)calloc((size_t)nl, sizeof(float *));
+        float **layer_output  = (float **)calloc((size_t)nl, sizeof(float *));
+        if (!layer_pre_act || !layer_output) {
+            free(layer_pre_act); free(layer_output);
+            return VNNS_ERR_OUT_OF_MEMORY;
         }
 
-        vnns_layer_t *last_layer = network->layers[network->num_layers - 1];
-        if (vnns_layer_get_activation(last_layer) == VNNS_ACT_SOFTMAX &&
-            network->loss == VNNS_LOSS_CATEGORICAL_CROSSENTROPY) {
-            for (int i = 0; i < network->output_size; i++) {
-                d_output[i] = output[i] - sample_label[i];
+        for (int i = 0; i < nl; i++) {
+            int os = network->layers[i]->output_size;
+            layer_pre_act[i] = (float *)malloc((size_t)batch_size * (size_t)os * sizeof(float));
+            layer_output[i]  = (float *)malloc((size_t)batch_size * (size_t)os * sizeof(float));
+            if (!layer_pre_act[i] || !layer_output[i]) {
+                for (int k = 0; k <= i; k++) { free(layer_pre_act[k]); free(layer_output[k]); }
+                free(layer_pre_act); free(layer_output);
+                return VNNS_ERR_OUT_OF_MEMORY;
             }
         }
 
-        /* Backprop */
-        const float *cur_d = d_output;
-        for (int i = network->num_layers - 1; i >= 0; i--) {
-            vnns_layer_t *layer = network->layers[i];
-            /* Apply dropout mask to gradients for hidden layers */
-            if (i < network->num_layers - 1) {
-                vnns_layer_apply_dropout_backward(layer, (float *)cur_d);
-            }
-            const float *layer_in = (i == 0) ? sample_input : vnns_layer_get_last_output(network->layers[i - 1]);
-            vnns_layer_accumulate_gradients(layer, layer_in, cur_d, batch_inv);
-            if (i > 0) {
-                vnns_layer_backward(layer, layer_in, cur_d, d_input);
-                cur_d = d_input;
+        /* Also store per-sample inputs for each layer (needed for gradient accumulation) */
+        float **layer_input = (float **)calloc((size_t)nl, sizeof(float *));
+        if (!layer_input) {
+            for (int i = 0; i < nl; i++) { free(layer_pre_act[i]); free(layer_output[i]); }
+            free(layer_pre_act); free(layer_output); free(layer_input);
+            return VNNS_ERR_OUT_OF_MEMORY;
+        }
+        for (int i = 0; i < nl; i++) {
+            int is = network->layers[i]->input_size;
+            layer_input[i] = (float *)malloc((size_t)batch_size * (size_t)is * sizeof(float));
+            if (!layer_input[i]) {
+                for (int k = 0; k < nl; k++) { free(layer_pre_act[k]); free(layer_output[k]); free(layer_input[k]); }
+                free(layer_pre_act); free(layer_output); free(layer_input);
+                return VNNS_ERR_OUT_OF_MEMORY;
             }
         }
+
+        /* === FORWARD === */
+        /* Process layer by layer, all samples */
+        for (int li = 0; li < nl; li++) {
+            vnns_layer_t *layer = network->layers[li];
+            int is = layer->input_size;
+            int os = layer->output_size;
+
+            /* Compute linear output for all samples */
+            for (int b = 0; b < batch_size; b++) {
+                const float *inp;
+                if (li == 0) {
+                    inp = &data[b * network->input_size];
+                } else {
+                    inp = &layer_output[li - 1][b * network->layers[li - 1]->output_size];
+                }
+                /* Cache input */
+                memcpy(&layer_input[li][b * is], inp, (size_t)is * sizeof(float));
+
+                /* Linear: pre_act = W*x + b */
+                float *pre = &layer_pre_act[li][b * os];
+                for (int j = 0; j < os; j++) {
+                    float sum = layer->use_bias ? layer->biases[j] : 0.0f;
+                    for (int k = 0; k < is; k++) {
+                        int idx = k * os + j;
+                        if (layer->mask && !layer->mask[idx]) continue;
+                        sum += inp[k] * layer->weights[idx];
+                    }
+                    pre[j] = sum;
+                }
+            }
+
+            /* Apply Batch Normalization (on pre_act, before activation) */
+            if (layer->use_batch_norm) {
+                vnns_layer_bn_forward_train(layer, layer_pre_act[li], batch_size, 0);
+            }
+
+            /* Apply activation + copy to output buffer */
+            for (int b = 0; b < batch_size; b++) {
+                float *pre = &layer_pre_act[li][b * os];
+                float *out = &layer_output[li][b * os];
+                for (int j = 0; j < os; j++)
+                    out[j] = vnns_math_activate(pre[j], layer->activation);
+                if (layer->activation == VNNS_ACT_SOFTMAX)
+                    vnns_math_softmax(out, os);
+
+                /* Cache in layer struct for backward compatibility */
+                memcpy(layer->last_pre_activation, pre, (size_t)os * sizeof(float));
+                memcpy(layer->last_output, out, (size_t)os * sizeof(float));
+            }
+
+            /* Apply dropout to hidden layers */
+            if (li < nl - 1) {
+                for (int b = 0; b < batch_size; b++) {
+                    float *out = &layer_output[li][b * os];
+                    vnns_layer_generate_dropout_mask(layer);
+                    vnns_layer_apply_dropout(layer, out);
+                }
+            }
+        }
+
+        /* === BACKWARD === */
+        /* Allocate d_output batch buffer */
+        float *d_out_batch = (float *)malloc((size_t)batch_size * (size_t)max_size * sizeof(float));
+        float *d_in_batch  = (float *)malloc((size_t)batch_size * (size_t)max_size * sizeof(float));
+        if (!d_out_batch || !d_in_batch) {
+            for (int i = 0; i < nl; i++) { free(layer_pre_act[i]); free(layer_output[i]); free(layer_input[i]); }
+            free(layer_pre_act); free(layer_output); free(layer_input);
+            free(d_out_batch); free(d_in_batch);
+            return VNNS_ERR_OUT_OF_MEMORY;
+        }
+
+        /* Compute output error for all samples */
+        int out_size = network->output_size;
+        vnns_layer_t *last_layer = network->layers[nl - 1];
+        for (int b = 0; b < batch_size; b++) {
+            const float *sample_label = &labels[b * out_size];
+            const float *out = &layer_output[nl - 1][b * out_size];
+            float *d_out = &d_out_batch[b * out_size];
+
+            if (last_layer->activation == VNNS_ACT_SOFTMAX &&
+                network->loss == VNNS_LOSS_CATEGORICAL_CROSSENTROPY) {
+                for (int j = 0; j < out_size; j++)
+                    d_out[j] = out[j] - sample_label[j];
+            } else {
+                float loss_scale = 1.0f / (float)out_size;
+                for (int j = 0; j < out_size; j++)
+                    d_out[j] = vnns_math_loss_derivative_from_output(out[j], sample_label[j], network->loss) * loss_scale;
+            }
+        }
+
+        /* Backprop layer by layer (reverse order) */
+        for (int li = nl - 1; li >= 0; li--) {
+            vnns_layer_t *layer = network->layers[li];
+            int is = layer->input_size;
+            int os = layer->output_size;
+
+            /* Apply dropout backward for hidden layers */
+            if (li < nl - 1) {
+                for (int b = 0; b < batch_size; b++) {
+                    float *d_out = &d_out_batch[b * os];
+                    vnns_layer_apply_dropout_backward(layer, d_out);
+                }
+            }
+
+            /* If BN: need to transform d_output through activation derivative first,
+               then pass through BN backward, then accumulate weight gradients.
+               d_pre_act = d_out * act'(pre_act)  (for non-softmax)
+               Then BN backward modifies d_pre_act to be d_linear.
+            */
+            if (layer->use_batch_norm) {
+                /* Compute d_pre_act for all samples (gradient w.r.t. BN output = pre-activation after BN) */
+                float *d_pre_batch = (float *)malloc((size_t)batch_size * (size_t)os * sizeof(float));
+                if (!d_pre_batch) {
+                    /* cleanup omitted for brevity — in practice this won't fail for small buffers */
+                    for (int i = 0; i < nl; i++) { free(layer_pre_act[i]); free(layer_output[i]); free(layer_input[i]); }
+                    free(layer_pre_act); free(layer_output); free(layer_input);
+                    free(d_out_batch); free(d_in_batch);
+                    return VNNS_ERR_OUT_OF_MEMORY;
+                }
+
+                for (int b = 0; b < batch_size; b++) {
+                    float *d_out = &d_out_batch[b * os];
+                    float *d_pre = &d_pre_batch[b * os];
+                    float *pre   = &layer_pre_act[li][b * os];
+                    if (layer->activation == VNNS_ACT_SOFTMAX) {
+                        memcpy(d_pre, d_out, (size_t)os * sizeof(float));
+                    } else {
+                        for (int j = 0; j < os; j++)
+                            d_pre[j] = d_out[j] * vnns_math_activate_derivative(pre[j], layer->activation);
+                    }
+                }
+
+                /* BN backward: transforms d_pre_batch from d(BN output) to d(linear output) */
+                vnns_layer_bn_backward(layer, d_pre_batch, batch_size);
+
+                /* Now accumulate weight gradients and propagate d_input using d_pre_batch (d w.r.t. linear output) */
+                for (int b = 0; b < batch_size; b++) {
+                    float *d_lin = &d_pre_batch[b * os];
+                    const float *inp = &layer_input[li][b * is];
+
+                    /* Store for backward compat */
+                    memcpy(layer->last_d_output, d_lin, (size_t)os * sizeof(float));
+                    memcpy(layer->last_input, inp, (size_t)is * sizeof(float));
+
+                    /* Accumulate dW, db */
+                    for (int j = 0; j < os; j++) {
+                        for (int k = 0; k < is; k++) {
+                            int idx = k * os + j;
+                            if (layer->mask && !layer->mask[idx]) continue;
+                            layer->d_weights[idx] += inp[k] * d_lin[j] * batch_inv;
+                        }
+                        if (layer->use_bias)
+                            layer->d_biases[j] += d_lin[j] * batch_inv;
+                    }
+
+                    /* Propagate d_input to previous layer */
+                    if (li > 0) {
+                        float *d_in = &d_in_batch[b * is];
+                        for (int k = 0; k < is; k++) {
+                            float sum = 0.0f;
+                            for (int j = 0; j < os; j++) {
+                                int idx = k * os + j;
+                                if (layer->mask && !layer->mask[idx]) continue;
+                                sum += layer->weights[idx] * d_lin[j];
+                            }
+                            d_in[k] = sum;
+                        }
+                    }
+                }
+
+                free(d_pre_batch);
+            } else {
+                /* Non-BN layer: standard per-sample backward */
+                for (int b = 0; b < batch_size; b++) {
+                    float *d_out = &d_out_batch[b * os];
+                    const float *inp = &layer_input[li][b * is];
+
+                    memcpy(layer->last_d_output, d_out, (size_t)os * sizeof(float));
+                    memcpy(layer->last_input, inp, (size_t)is * sizeof(float));
+                    memcpy(layer->last_pre_activation, &layer_pre_act[li][b * os], (size_t)os * sizeof(float));
+
+                    vnns_layer_accumulate_gradients(layer, inp, d_out, batch_inv);
+
+                    if (li > 0) {
+                        float *d_in = &d_in_batch[b * is];
+                        vnns_layer_backward(layer, inp, d_out, d_in);
+                    }
+                }
+            }
+
+            /* Swap d_out_batch <- d_in_batch for next layer */
+            if (li > 0) {
+                float *tmp = d_out_batch;
+                d_out_batch = d_in_batch;
+                d_in_batch = tmp;
+            }
+        }
+
+        /* Update weights + BN params */
+        network->adam_t++;
+        for (int i = 0; i < nl; i++) {
+            switch (network->optimizer_type) {
+                case VNNS_OPTIMIZER_SGD:
+                    vnns_layer_update_sgd(network->layers[i], network->learning_rate, network->clip_gradient);
+                    vnns_layer_bn_update_sgd(network->layers[i], network->learning_rate, network->clip_gradient);
+                    break;
+                case VNNS_OPTIMIZER_SGD_MOMENTUM:
+                    vnns_layer_update_sgd_momentum(network->layers[i], network->learning_rate, network->momentum, network->clip_gradient);
+                    vnns_layer_bn_update_sgd_momentum(network->layers[i], network->learning_rate, network->momentum, network->clip_gradient);
+                    break;
+                case VNNS_OPTIMIZER_ADAM:
+                    vnns_layer_update_adam(network->layers[i], network->learning_rate, network->beta1, network->beta2, network->epsilon, network->adam_t, network->clip_gradient);
+                    vnns_layer_bn_update_adam(network->layers[i], network->learning_rate, network->beta1, network->beta2, network->epsilon, network->adam_t, network->clip_gradient);
+                    break;
+                case VNNS_OPTIMIZER_RMSPROP:
+                    vnns_layer_update_rmsprop(network->layers[i], network->learning_rate, 0.99f, network->epsilon, network->clip_gradient);
+                    vnns_layer_bn_update_rmsprop(network->layers[i], network->learning_rate, 0.99f, network->epsilon, network->clip_gradient);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        for (int i = 0; i < nl; i++) { free(layer_pre_act[i]); free(layer_output[i]); free(layer_input[i]); }
+        free(layer_pre_act); free(layer_output); free(layer_input);
+        free(d_out_batch); free(d_in_batch);
+
+    } else {
+        /* ===== Original sample-by-sample path (no BN) ===== */
+        int max_size = network->input_size;
+        for (int i = 0; i < nl; i++) {
+            if (network->layers[i]->output_size > max_size)
+                max_size = network->layers[i]->output_size;
+        }
+
+        float *output = (float *)malloc((size_t)max_size * sizeof(float));
+        float *d_output = (float *)malloc((size_t)max_size * sizeof(float));
+        float *d_input = (float *)malloc((size_t)max_size * sizeof(float));
+
+        if (!output || !d_output || !d_input) {
+            free(output); free(d_output); free(d_input);
+            return VNNS_ERR_OUT_OF_MEMORY;
+        }
+
+        for (int b = 0; b < batch_size; b++) {
+            const float *sample_input = &data[b * network->input_size];
+            const float *sample_label = &labels[b * network->output_size];
+
+            /* Forward */
+            const float *current_input = sample_input;
+            for (int i = 0; i < nl; i++) {
+                float *layer_out = (i == nl - 1) ? output : d_input;
+                vnns_layer_forward(network->layers[i], current_input, layer_out);
+                if (i < nl - 1) {
+                    vnns_layer_generate_dropout_mask(network->layers[i]);
+                    vnns_layer_apply_dropout(network->layers[i], layer_out);
+                }
+                current_input = layer_out;
+            }
+
+            /* Output error */
+            float loss_scale = (network->loss != VNNS_LOSS_CATEGORICAL_CROSSENTROPY)
+                ? 1.0f / (float)network->output_size : 1.0f;
+            for (int i = 0; i < network->output_size; i++)
+                d_output[i] = vnns_math_loss_derivative_from_output(output[i], sample_label[i], network->loss) * loss_scale;
+
+            vnns_layer_t *last_layer = network->layers[nl - 1];
+            if (vnns_layer_get_activation(last_layer) == VNNS_ACT_SOFTMAX &&
+                network->loss == VNNS_LOSS_CATEGORICAL_CROSSENTROPY) {
+                for (int i = 0; i < network->output_size; i++)
+                    d_output[i] = output[i] - sample_label[i];
+            }
+
+            /* Backprop */
+            const float *cur_d = d_output;
+            for (int i = nl - 1; i >= 0; i--) {
+                vnns_layer_t *layer = network->layers[i];
+                if (i < nl - 1)
+                    vnns_layer_apply_dropout_backward(layer, (float *)cur_d);
+                const float *layer_in = (i == 0) ? sample_input : vnns_layer_get_last_output(network->layers[i - 1]);
+                vnns_layer_accumulate_gradients(layer, layer_in, cur_d, batch_inv);
+                if (i > 0) {
+                    vnns_layer_backward(layer, layer_in, cur_d, d_input);
+                    cur_d = d_input;
+                }
+            }
+        }
+
+        /* Update weights */
+        network->adam_t++;
+        for (int i = 0; i < nl; i++) {
+            switch (network->optimizer_type) {
+                case VNNS_OPTIMIZER_SGD:
+                    vnns_layer_update_sgd(network->layers[i], network->learning_rate, network->clip_gradient);
+                    break;
+                case VNNS_OPTIMIZER_SGD_MOMENTUM:
+                    vnns_layer_update_sgd_momentum(network->layers[i], network->learning_rate, network->momentum, network->clip_gradient);
+                    break;
+                case VNNS_OPTIMIZER_ADAM:
+                    vnns_layer_update_adam(network->layers[i], network->learning_rate, network->beta1, network->beta2, network->epsilon, network->adam_t, network->clip_gradient);
+                    break;
+                case VNNS_OPTIMIZER_RMSPROP:
+                    vnns_layer_update_rmsprop(network->layers[i], network->learning_rate, 0.99f, network->epsilon, network->clip_gradient);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        free(output);
+        free(d_output);
+        free(d_input);
     }
 
-    /* Update weights */
-    network->adam_t++;
-    for (int i = 0; i < network->num_layers; i++) {
-        switch (network->optimizer_type) {
-            case VNNS_OPTIMIZER_SGD:
-                vnns_layer_update_sgd(network->layers[i], network->learning_rate, network->clip_gradient);
-                break;
-            case VNNS_OPTIMIZER_SGD_MOMENTUM:
-                vnns_layer_update_sgd_momentum(network->layers[i], network->learning_rate, network->momentum, network->clip_gradient);
-                break;
-            case VNNS_OPTIMIZER_ADAM:
-                vnns_layer_update_adam(network->layers[i], network->learning_rate, network->beta1, network->beta2, network->epsilon, network->adam_t, network->clip_gradient);
-                break;
-            case VNNS_OPTIMIZER_RMSPROP:
-                vnns_layer_update_rmsprop(network->layers[i], network->learning_rate, 0.99f, network->epsilon, network->clip_gradient);
-                break;
-            default:
-                break;
-        }
-    }
-
-    free(output);
-    free(d_output);
-    free(d_input);
     return VNNS_OK;
 }
 

@@ -46,6 +46,29 @@ struct vnns_layer {
     /* Dropout */
     float dropout_rate;       /* 0.0 = no dropout, e.g. 0.2 = drop 20% */
     uint8_t *dropout_mask;    /* [output_size] 1 = keep, 0 = dropped. NULL when rate==0 */
+
+    /* Batch Normalization (applied post-linear, pre-activation) */
+    int use_batch_norm;
+    float bn_epsilon;
+    float bn_momentum;
+    float *bn_gamma;          /* [output_size] learnable scale */
+    float *bn_beta;           /* [output_size] learnable shift */
+    float *bn_running_mean;   /* [output_size] EMA mean for inference */
+    float *bn_running_var;    /* [output_size] EMA variance for inference */
+    float *bn_dgamma;         /* [output_size] gradient for gamma */
+    float *bn_dbeta;          /* [output_size] gradient for beta */
+    /* Adam state for gamma/beta */
+    float *bn_m_gamma;
+    float *bn_v_gamma;
+    float *bn_m_beta;
+    float *bn_v_beta;
+    /* Cache for backward pass */
+    float *bn_x_hat;          /* [output_size] normalized values (last sample) */
+    float *bn_batch_mean;     /* [output_size] batch mean */
+    float *bn_batch_var;      /* [output_size] batch variance */
+    /* Per-sample x_hat cache for BN backward (batch_size * output_size), managed by network */
+    float *bn_x_hat_batch;    /* [batch_size * output_size] all x_hat for the batch */
+    int bn_x_hat_batch_cap;   /* allocated capacity (in samples) */
 };
 
 struct vnns_network {

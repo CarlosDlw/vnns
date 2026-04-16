@@ -169,6 +169,8 @@ VNNS_EXPORT int vnns_wasm_create_network(const char *config_json) {
         layers[i].weight_init_scale = 0.5f;
         snprintf(key, sizeof(key), "layer_%d_dropout", i);
         layers[i].dropout_rate = json_find_float(config_json, key, 0.0f);
+        snprintf(key, sizeof(key), "layer_%d_batch_norm", i);
+        layers[i].use_batch_norm = json_find_int(config_json, key, 0);
 
         /* Parse connection mask if present */
         int wc = layers[i].input_size * layers[i].output_size;
@@ -356,6 +358,7 @@ VNNS_EXPORT char *vnns_wasm_get_weights_json(int net_id) {
     for (int i = 0; i < net->num_layers; i++) {
         total += net->layers[i]->weight_count;
         if (net->layers[i]->use_bias) total += net->layers[i]->output_size;
+        if (net->layers[i]->use_batch_norm) total += net->layers[i]->output_size * 4; /* gamma, beta, running_mean, running_var */
     }
 
     size_t buf_size = (size_t)total * 20 + 64;
@@ -377,6 +380,26 @@ VNNS_EXPORT char *vnns_wasm_get_weights_json(int net_id) {
                 if (!first) buf[offset++] = ',';
                 offset += snprintf(buf + offset, buf_size - (size_t)offset, "%.8g", layer->biases[j]);
                 first = 0;
+            }
+        }
+        if (layer->use_batch_norm) {
+            int os = layer->output_size;
+            for (int j = 0; j < os; j++) {
+                if (!first) buf[offset++] = ',';
+                offset += snprintf(buf + offset, buf_size - (size_t)offset, "%.8g", layer->bn_gamma[j]);
+                first = 0;
+            }
+            for (int j = 0; j < os; j++) {
+                buf[offset++] = ',';
+                offset += snprintf(buf + offset, buf_size - (size_t)offset, "%.8g", layer->bn_beta[j]);
+            }
+            for (int j = 0; j < os; j++) {
+                buf[offset++] = ',';
+                offset += snprintf(buf + offset, buf_size - (size_t)offset, "%.8g", layer->bn_running_mean[j]);
+            }
+            for (int j = 0; j < os; j++) {
+                buf[offset++] = ',';
+                offset += snprintf(buf + offset, buf_size - (size_t)offset, "%.8g", layer->bn_running_var[j]);
             }
         }
     }
@@ -406,6 +429,33 @@ VNNS_EXPORT void vnns_wasm_set_weights(int net_id, const char *weights_json) {
                 while (*p && (*p == ' ' || *p == ',' || *p == '\n' || *p == '\r')) p++;
                 if (*p == ']' || *p == '\0') return;
                 layer->biases[j] = (float)atof(p);
+                while (*p && *p != ',' && *p != ']' && *p != ' ') p++;
+            }
+        }
+        if (layer->use_batch_norm) {
+            int os = layer->output_size;
+            for (int j = 0; j < os; j++) {
+                while (*p && (*p == ' ' || *p == ',' || *p == '\n' || *p == '\r')) p++;
+                if (*p == ']' || *p == '\0') return;
+                layer->bn_gamma[j] = (float)atof(p);
+                while (*p && *p != ',' && *p != ']' && *p != ' ') p++;
+            }
+            for (int j = 0; j < os; j++) {
+                while (*p && (*p == ' ' || *p == ',' || *p == '\n' || *p == '\r')) p++;
+                if (*p == ']' || *p == '\0') return;
+                layer->bn_beta[j] = (float)atof(p);
+                while (*p && *p != ',' && *p != ']' && *p != ' ') p++;
+            }
+            for (int j = 0; j < os; j++) {
+                while (*p && (*p == ' ' || *p == ',' || *p == '\n' || *p == '\r')) p++;
+                if (*p == ']' || *p == '\0') return;
+                layer->bn_running_mean[j] = (float)atof(p);
+                while (*p && *p != ',' && *p != ']' && *p != ' ') p++;
+            }
+            for (int j = 0; j < os; j++) {
+                while (*p && (*p == ' ' || *p == ',' || *p == '\n' || *p == '\r')) p++;
+                if (*p == ']' || *p == '\0') return;
+                layer->bn_running_var[j] = (float)atof(p);
                 while (*p && *p != ',' && *p != ']' && *p != ' ') p++;
             }
         }

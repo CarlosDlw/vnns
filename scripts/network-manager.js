@@ -22,6 +22,7 @@ class NetworkManager {
       type: options.type || 'dense',
       activation: options.activation || 'relu',
       dropoutRate: options.dropoutRate || 0,
+      useBatchNorm: options.useBatchNorm || false,
       neurons: [],
       position: options.position || { x: 0, y: 0 },
       style: options.style || {},

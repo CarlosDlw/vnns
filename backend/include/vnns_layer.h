@@ -17,6 +17,17 @@ void vnns_layer_apply_dropout_backward(vnns_layer_t *layer, float *d_output);
 float vnns_layer_get_dropout_rate(const vnns_layer_t *layer);
 const uint8_t *vnns_layer_get_dropout_mask(const vnns_layer_t *layer);
 
+/* ---- Batch Normalization ---- */
+void vnns_layer_bn_forward_train(vnns_layer_t *layer, float *pre_act, int batch_size, int sample_idx);
+void vnns_layer_bn_forward_infer(vnns_layer_t *layer, float *pre_act);
+void vnns_layer_bn_backward(vnns_layer_t *layer, float *d_pre_act, int batch_size);
+void vnns_layer_bn_zero_gradients(vnns_layer_t *layer);
+void vnns_layer_bn_update_sgd(vnns_layer_t *layer, float lr, float clip);
+void vnns_layer_bn_update_sgd_momentum(vnns_layer_t *layer, float lr, float momentum, float clip);
+void vnns_layer_bn_update_adam(vnns_layer_t *layer, float lr, float beta1, float beta2, float eps, int t, float clip);
+void vnns_layer_bn_update_rmsprop(vnns_layer_t *layer, float lr, float decay, float eps, float clip);
+int vnns_layer_get_use_batch_norm(const vnns_layer_t *layer);
+
 /* ---- Backward Pass ---- */
 void vnns_layer_backward(vnns_layer_t *layer, const float *input, const float *d_output, float *d_input);
 

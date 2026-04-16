@@ -142,6 +142,8 @@
       var neurons = V.network.getNeuronsByLayer(layer.id);
       var act = (layer.activation || 'linear').replace(/relu/i, 'ReLU').replace(/sigmoid/i, 'σ').replace(/tanh/i, 'tanh').replace(/softmax/i, 'SM').replace(/leakyrelu/i, 'LReLU').replace(/linear/i, 'Lin').replace(/elu/i, 'ELU').replace(/gelu/i, 'GELU').replace(/swish/i, 'Swish');
       var badgeText = neurons.length + 'n · ' + act;
+      if (layer.useBatchNorm) badgeText += ' · BN';
+      if (layer.dropoutRate > 0) badgeText += ' · D' + Math.round(layer.dropoutRate * 100) + '%';
       var badgeFontSize = Math.max(7, 8 * viewport.zoom);
       ctx.font = badgeFontSize + 'px -apple-system, sans-serif';
       ctx.fillStyle = light ? 'rgba(15, 23, 42, 0.45)' : 'rgba(255,255,255,0.35)';

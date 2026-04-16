@@ -56,6 +56,7 @@
     var connsOut = V.network.getConnectionsByLayer(layer.id, 'outgoing');
     var color = layer.style.color || LAYER_COLORS[li % LAYER_COLORS.length];
     var useBias = layer.useBias !== false;
+    var useBatchNorm = !!layer.useBatchNorm;
     var weightInit = layer.weightInit || 'xavier';
     var dropoutRate = layer.dropoutRate || 0;
 
@@ -69,6 +70,7 @@
       '<div class="props-group"><div class="props-group-header"><span class="codicon codicon-chevron-down"></span> Parameters</div><div class="props-group-body">' +
         '<div class="props-row"><span class="props-label">Neurons</span><input class="props-input" data-prop="neuronCount" type="number" min="0" max="64" value="' + neurons.length + '" style="width:50px" /></div>' +
         '<div class="props-row"><label class="props-checkbox"><input type="checkbox" data-prop="useBias" ' + (useBias ? 'checked' : '') + ' /> Use Bias</label></div>' +
+        '<div class="props-row"><label class="props-checkbox"><input type="checkbox" data-prop="useBatchNorm" ' + (useBatchNorm ? 'checked' : '') + ' /> Batch Norm</label></div>' +
         '<div class="props-row"><span class="props-label">Dropout</span><input class="props-input" data-prop="dropoutRate" type="number" min="0" max="0.9" step="0.05" value="' + dropoutRate.toFixed(2) + '" style="width:60px" /></div>' +
         '<div class="props-row"><span class="props-label">Weight Init</span>' + V.makeSelectHtml('weightInit', V.WEIGHT_INITS, weightInit) + '</div>' +
       '</div></div>' +
@@ -220,6 +222,9 @@
 
     var biasCheck = content.querySelector('[data-prop="useBias"]');
     if (biasCheck) biasCheck.addEventListener('change', function() { V.saveState(); layer.useBias = biasCheck.checked; V.invalidateBackendNetwork(); _lastPropsKey = ''; V.render(); });
+
+    var bnCheck = content.querySelector('[data-prop="useBatchNorm"]');
+    if (bnCheck) bnCheck.addEventListener('change', function() { V.saveState(); layer.useBatchNorm = bnCheck.checked; V.invalidateBackendNetwork(); _lastPropsKey = ''; V.render(); });
 
     var dropoutInput = content.querySelector('[data-prop="dropoutRate"]');
     if (dropoutInput) dropoutInput.addEventListener('change', function() {
@@ -676,6 +681,9 @@
       case 'menu-tpl-dropout':
         applyTemplate({ layers: [{name:'Input',neurons:4,activation:'linear'},{name:'Hidden 1',neurons:16,activation:'relu',dropoutRate:0.3},{name:'Hidden 2',neurons:16,activation:'relu',dropoutRate:0.3},{name:'Output',neurons:3,activation:'softmax'}], params:{optimizer:'Adam',lr:0.01,epochs:3000,batch:16,loss:'Categorical CrossEntropy'}, split:{train:70,val:15}, dataset:V.generateIrisDataset() });
         break;
+      case 'menu-tpl-batch-norm':
+        applyTemplate({ layers: [{name:'Input',neurons:4,activation:'linear'},{name:'Hidden 1',neurons:16,activation:'relu',useBatchNorm:true},{name:'Hidden 2',neurons:16,activation:'relu',useBatchNorm:true},{name:'Output',neurons:3,activation:'softmax'}], params:{optimizer:'Adam',lr:0.01,epochs:2000,batch:16,loss:'Categorical CrossEntropy'}, split:{train:70,val:15}, dataset:V.generateIrisDataset() });
+        break;
       case 'menu-tpl-custom':
         openCustomTemplatePrompt();
         break;
@@ -712,7 +720,7 @@
       var createdLayers = [];
 
       layerDefs.forEach(function(def, i) {
-        var layer = V.network.createLayer({ name: def.name, type: 'dense', activation: def.activation || 'relu', dropoutRate: def.dropoutRate || 0, position: { x: i * 200, y: 0 }, style: { color: colors[i % colors.length] } });
+        var layer = V.network.createLayer({ name: def.name, type: 'dense', activation: def.activation || 'relu', dropoutRate: def.dropoutRate || 0, useBatchNorm: def.useBatchNorm || false, position: { x: i * 200, y: 0 }, style: { color: colors[i % colors.length] } });
         for (var n = 0; n < def.neurons; n++) V.network.createNeuron({ layerId: layer.id });
         V.layoutLayerNeurons(layer);
         createdLayers.push(layer);

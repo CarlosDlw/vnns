@@ -136,6 +136,9 @@ class WASMBridge {
         if (toLayer.dropoutRate > 0) {
           config[`layer_${i}_dropout`] = toLayer.dropoutRate;
         }
+        if (toLayer.useBatchNorm) {
+          config[`layer_${i}_batch_norm`] = 1;
+        }
 
         const connections = networkManager.getConnectionsBetweenLayers(fromLayer.id, toLayer.id);
         const totalWeights = inputSize * outputSize;
@@ -253,6 +256,9 @@ class WASMBridge {
       // Dropout rate
       if (toLayer.dropoutRate > 0) {
         config[`layer_${e}_dropout`] = toLayer.dropoutRate;
+      }
+      if (toLayer.useBatchNorm) {
+        config[`layer_${e}_batch_norm`] = 1;
       }
     }
 

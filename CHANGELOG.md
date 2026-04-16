@@ -14,6 +14,11 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Dropout rate input (0–0.9) in layer properties panel
 - Visual dropout overlay on canvas (dimmed neurons with red X during training)
 - "Dropout Regularization" network template (4→16→16→3, rate 0.3, Iris dataset)
+- Batch Normalization layer (post-linear, pre-activation; training uses true batch statistics, inference uses running mean/var EMA)
+- BN toggle checkbox in layer properties panel
+- BN badge indicator on canvas layer footer
+- "Batch Normalization" network template (4→16(BN)→16(BN)→3, Iris dataset)
+- BN parameters (gamma, beta, running_mean, running_var) included in weights JSON serialization for correct Worker→main thread sync
 
 ### Changed
 - Modularized `main.js` (~5300 lines) into 7 focused modules:

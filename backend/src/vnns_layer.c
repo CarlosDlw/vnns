@@ -96,6 +96,44 @@ vnns_layer_t *vnns_layer_create(const vnns_layer_config_t *config) {
         layer->dropout_mask = NULL;
     }
 
+    /* Batch Normalization */
+    layer->use_batch_norm = config->use_batch_norm;
+    if (layer->use_batch_norm) {
+        int os = config->output_size;
+        layer->bn_epsilon = 1e-5f;
+        layer->bn_momentum = 0.1f;
+        layer->bn_gamma        = (float *)malloc((size_t)os * sizeof(float));
+        layer->bn_beta         = (float *)calloc((size_t)os, sizeof(float));
+        layer->bn_running_mean = (float *)calloc((size_t)os, sizeof(float));
+        layer->bn_running_var  = (float *)malloc((size_t)os * sizeof(float));
+        layer->bn_dgamma       = (float *)calloc((size_t)os, sizeof(float));
+        layer->bn_dbeta        = (float *)calloc((size_t)os, sizeof(float));
+        layer->bn_m_gamma      = (float *)calloc((size_t)os, sizeof(float));
+        layer->bn_v_gamma      = (float *)calloc((size_t)os, sizeof(float));
+        layer->bn_m_beta       = (float *)calloc((size_t)os, sizeof(float));
+        layer->bn_v_beta       = (float *)calloc((size_t)os, sizeof(float));
+        layer->bn_x_hat        = (float *)calloc((size_t)os, sizeof(float));
+        layer->bn_batch_mean   = (float *)calloc((size_t)os, sizeof(float));
+        layer->bn_batch_var    = (float *)calloc((size_t)os, sizeof(float));
+        layer->bn_x_hat_batch  = NULL;
+        layer->bn_x_hat_batch_cap = 0;
+
+        if (!layer->bn_gamma || !layer->bn_beta || !layer->bn_running_mean ||
+            !layer->bn_running_var || !layer->bn_dgamma || !layer->bn_dbeta ||
+            !layer->bn_m_gamma || !layer->bn_v_gamma || !layer->bn_m_beta ||
+            !layer->bn_v_beta || !layer->bn_x_hat || !layer->bn_batch_mean ||
+            !layer->bn_batch_var) {
+            vnns_layer_free(layer);
+            return NULL;
+        }
+
+        /* Init gamma=1, beta=0, running_var=1 */
+        for (int i = 0; i < os; i++) {
+            layer->bn_gamma[i] = 1.0f;
+            layer->bn_running_var[i] = 1.0f;
+        }
+    }
+
     return layer;
 }
 
@@ -119,6 +157,20 @@ void vnns_layer_free(vnns_layer_t *layer) {
     free(layer->last_d_output);
     free(layer->mask);
     free(layer->dropout_mask);
+    free(layer->bn_gamma);
+    free(layer->bn_beta);
+    free(layer->bn_running_mean);
+    free(layer->bn_running_var);
+    free(layer->bn_dgamma);
+    free(layer->bn_dbeta);
+    free(layer->bn_m_gamma);
+    free(layer->bn_v_gamma);
+    free(layer->bn_m_beta);
+    free(layer->bn_v_beta);
+    free(layer->bn_x_hat);
+    free(layer->bn_batch_mean);
+    free(layer->bn_batch_var);
+    free(layer->bn_x_hat_batch);
     free(layer);
 }
 
@@ -136,7 +188,16 @@ void vnns_layer_forward(vnns_layer_t *layer, const float *input, float *output) 
             sum += in[i] * layer->weights[idx];
         }
         layer->last_pre_activation[j] = sum;
-        output[j] = vnns_math_activate(sum, layer->activation);
+    }
+
+    /* Batch Normalization (inference: use running stats) */
+    if (layer->use_batch_norm) {
+        vnns_layer_bn_forward_infer(layer, layer->last_pre_activation);
+    }
+
+    /* Activation */
+    for (int j = 0; j < layer->output_size; j++) {
+        output[j] = vnns_math_activate(layer->last_pre_activation[j], layer->activation);
     }
 
     if (layer->activation == VNNS_ACT_SOFTMAX) {
@@ -182,6 +243,200 @@ void vnns_layer_apply_dropout_backward(vnns_layer_t *layer, float *d_output) {
 
 float vnns_layer_get_dropout_rate(const vnns_layer_t *layer) { return layer->dropout_rate; }
 const uint8_t *vnns_layer_get_dropout_mask(const vnns_layer_t *layer) { return layer->dropout_mask; }
+
+/* ---- Batch Normalization ---- */
+
+/*
+ * BN forward (training mode).
+ * Called ONCE per layer per batch, after collecting all pre_activations.
+ * pre_act_batch: [batch_size * output_size] — all pre_activations for the batch.
+ * Normalizes in-place, caches x_hat per sample for backward.
+ * Updates running mean/var via EMA.
+ */
+void vnns_layer_bn_forward_train(vnns_layer_t *layer, float *pre_act_batch, int batch_size, int sample_idx) {
+    (void)sample_idx; /* unused in batch mode */
+    if (!layer->use_batch_norm) return;
+    int os = layer->output_size;
+
+    /* Ensure x_hat_batch buffer is large enough */
+    if (layer->bn_x_hat_batch_cap < batch_size) {
+        free(layer->bn_x_hat_batch);
+        layer->bn_x_hat_batch = (float *)malloc((size_t)batch_size * (size_t)os * sizeof(float));
+        layer->bn_x_hat_batch_cap = batch_size;
+    }
+
+    /* Compute batch mean */
+    for (int j = 0; j < os; j++) {
+        float sum = 0.0f;
+        for (int b = 0; b < batch_size; b++)
+            sum += pre_act_batch[b * os + j];
+        layer->bn_batch_mean[j] = sum / (float)batch_size;
+    }
+
+    /* Compute batch variance */
+    for (int j = 0; j < os; j++) {
+        float sum = 0.0f;
+        float mean = layer->bn_batch_mean[j];
+        for (int b = 0; b < batch_size; b++) {
+            float diff = pre_act_batch[b * os + j] - mean;
+            sum += diff * diff;
+        }
+        layer->bn_batch_var[j] = sum / (float)batch_size;
+    }
+
+    /* Normalize, scale, shift — in-place */
+    for (int j = 0; j < os; j++) {
+        float inv_std = 1.0f / sqrtf(layer->bn_batch_var[j] + layer->bn_epsilon);
+        float mean = layer->bn_batch_mean[j];
+        for (int b = 0; b < batch_size; b++) {
+            int idx = b * os + j;
+            float x_hat = (pre_act_batch[idx] - mean) * inv_std;
+            layer->bn_x_hat_batch[idx] = x_hat;
+            pre_act_batch[idx] = layer->bn_gamma[j] * x_hat + layer->bn_beta[j];
+        }
+    }
+
+    /* Update running stats (EMA) */
+    float mom = layer->bn_momentum;
+    for (int j = 0; j < os; j++) {
+        layer->bn_running_mean[j] = (1.0f - mom) * layer->bn_running_mean[j] + mom * layer->bn_batch_mean[j];
+        layer->bn_running_var[j]  = (1.0f - mom) * layer->bn_running_var[j]  + mom * layer->bn_batch_var[j];
+    }
+}
+
+/*
+ * BN forward (inference mode).
+ * Normalizes a single pre_activation vector using running stats.
+ */
+void vnns_layer_bn_forward_infer(vnns_layer_t *layer, float *pre_act) {
+    if (!layer->use_batch_norm) return;
+    int os = layer->output_size;
+    for (int j = 0; j < os; j++) {
+        float x_hat = (pre_act[j] - layer->bn_running_mean[j]) /
+                       sqrtf(layer->bn_running_var[j] + layer->bn_epsilon);
+        pre_act[j] = layer->bn_gamma[j] * x_hat + layer->bn_beta[j];
+    }
+}
+
+/*
+ * BN backward.
+ * d_pre_act_batch: [batch_size * output_size] — gradients w.r.t. BN output.
+ * Modifies d_pre_act_batch in-place to be gradients w.r.t. BN input (the raw linear output).
+ * Accumulates dgamma, dbeta.
+ */
+void vnns_layer_bn_backward(vnns_layer_t *layer, float *d_pre_act_batch, int batch_size) {
+    if (!layer->use_batch_norm) return;
+    int os = layer->output_size;
+    float batch_inv = 1.0f / (float)batch_size;
+
+    for (int j = 0; j < os; j++) {
+        float inv_std = 1.0f / sqrtf(layer->bn_batch_var[j] + layer->bn_epsilon);
+        float dgamma = 0.0f;
+        float dbeta = 0.0f;
+
+        /* Accumulate dgamma, dbeta */
+        for (int b = 0; b < batch_size; b++) {
+            int idx = b * os + j;
+            dbeta += d_pre_act_batch[idx];
+            dgamma += d_pre_act_batch[idx] * layer->bn_x_hat_batch[idx];
+        }
+        layer->bn_dgamma[j] += dgamma;
+        layer->bn_dbeta[j] += dbeta;
+
+        /* Compute d_x_hat */
+        /* d_x = (1/N) * gamma * inv_std * (N * d_out - sum(d_out) - x_hat * sum(d_out * x_hat)) */
+        float sum_dout = dbeta;
+        float sum_dout_xhat = dgamma;
+
+        for (int b = 0; b < batch_size; b++) {
+            int idx = b * os + j;
+            float d_out = d_pre_act_batch[idx];
+            d_pre_act_batch[idx] = layer->bn_gamma[j] * inv_std * batch_inv *
+                ((float)batch_size * d_out - sum_dout -
+                 layer->bn_x_hat_batch[idx] * sum_dout_xhat);
+        }
+    }
+}
+
+void vnns_layer_bn_zero_gradients(vnns_layer_t *layer) {
+    if (!layer->use_batch_norm) return;
+    memset(layer->bn_dgamma, 0, (size_t)layer->output_size * sizeof(float));
+    memset(layer->bn_dbeta, 0, (size_t)layer->output_size * sizeof(float));
+}
+
+static void bn_clip_gradients(float *grads, int count, float clip) {
+    if (clip <= 0.0f) return;
+    float norm = 0.0f;
+    for (int i = 0; i < count; i++) norm += grads[i] * grads[i];
+    norm = sqrtf(norm);
+    if (norm > clip) {
+        float scale = clip / norm;
+        for (int i = 0; i < count; i++) grads[i] *= scale;
+    }
+}
+
+void vnns_layer_bn_update_sgd(vnns_layer_t *layer, float lr, float clip) {
+    if (!layer->use_batch_norm) return;
+    int os = layer->output_size;
+    bn_clip_gradients(layer->bn_dgamma, os, clip);
+    bn_clip_gradients(layer->bn_dbeta, os, clip);
+    for (int i = 0; i < os; i++) {
+        layer->bn_gamma[i] -= lr * layer->bn_dgamma[i];
+        layer->bn_beta[i]  -= lr * layer->bn_dbeta[i];
+    }
+}
+
+void vnns_layer_bn_update_sgd_momentum(vnns_layer_t *layer, float lr, float momentum, float clip) {
+    if (!layer->use_batch_norm) return;
+    int os = layer->output_size;
+    bn_clip_gradients(layer->bn_dgamma, os, clip);
+    bn_clip_gradients(layer->bn_dbeta, os, clip);
+    /* Reuse m_gamma/m_beta as velocity buffers for momentum */
+    for (int i = 0; i < os; i++) {
+        layer->bn_m_gamma[i] = momentum * layer->bn_m_gamma[i] + layer->bn_dgamma[i];
+        layer->bn_gamma[i] -= lr * layer->bn_m_gamma[i];
+        layer->bn_m_beta[i] = momentum * layer->bn_m_beta[i] + layer->bn_dbeta[i];
+        layer->bn_beta[i] -= lr * layer->bn_m_beta[i];
+    }
+}
+
+void vnns_layer_bn_update_adam(vnns_layer_t *layer, float lr, float beta1, float beta2, float eps, int t, float clip) {
+    if (!layer->use_batch_norm) return;
+    int os = layer->output_size;
+    bn_clip_gradients(layer->bn_dgamma, os, clip);
+    bn_clip_gradients(layer->bn_dbeta, os, clip);
+    float bc1 = 1.0f - powf(beta1, (float)t);
+    float bc2 = 1.0f - powf(beta2, (float)t);
+    for (int i = 0; i < os; i++) {
+        layer->bn_m_gamma[i] = beta1 * layer->bn_m_gamma[i] + (1.0f - beta1) * layer->bn_dgamma[i];
+        layer->bn_v_gamma[i] = beta2 * layer->bn_v_gamma[i] + (1.0f - beta2) * layer->bn_dgamma[i] * layer->bn_dgamma[i];
+        float mh = layer->bn_m_gamma[i] / bc1;
+        float vh = layer->bn_v_gamma[i] / bc2;
+        layer->bn_gamma[i] -= lr * mh / (sqrtf(vh) + eps);
+
+        layer->bn_m_beta[i] = beta1 * layer->bn_m_beta[i] + (1.0f - beta1) * layer->bn_dbeta[i];
+        layer->bn_v_beta[i] = beta2 * layer->bn_v_beta[i] + (1.0f - beta2) * layer->bn_dbeta[i] * layer->bn_dbeta[i];
+        mh = layer->bn_m_beta[i] / bc1;
+        vh = layer->bn_v_beta[i] / bc2;
+        layer->bn_beta[i] -= lr * mh / (sqrtf(vh) + eps);
+    }
+}
+
+void vnns_layer_bn_update_rmsprop(vnns_layer_t *layer, float lr, float decay, float eps, float clip) {
+    if (!layer->use_batch_norm) return;
+    int os = layer->output_size;
+    bn_clip_gradients(layer->bn_dgamma, os, clip);
+    bn_clip_gradients(layer->bn_dbeta, os, clip);
+    /* Reuse v_gamma/v_beta as cache */
+    for (int i = 0; i < os; i++) {
+        layer->bn_v_gamma[i] = decay * layer->bn_v_gamma[i] + (1.0f - decay) * layer->bn_dgamma[i] * layer->bn_dgamma[i];
+        layer->bn_gamma[i] -= lr * layer->bn_dgamma[i] / (sqrtf(layer->bn_v_gamma[i]) + eps);
+        layer->bn_v_beta[i] = decay * layer->bn_v_beta[i] + (1.0f - decay) * layer->bn_dbeta[i] * layer->bn_dbeta[i];
+        layer->bn_beta[i] -= lr * layer->bn_dbeta[i] / (sqrtf(layer->bn_v_beta[i]) + eps);
+    }
+}
+
+int vnns_layer_get_use_batch_norm(const vnns_layer_t *layer) { return layer->use_batch_norm; }
 
 void vnns_layer_backward(vnns_layer_t *layer, const float *input, const float *d_output, float *d_input) {
     (void)input;
